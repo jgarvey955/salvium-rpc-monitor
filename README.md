@@ -1,5 +1,7 @@
 # Salvium Monitor
 
+To Donate SAL1= SC11UA22DFrAQerDwJwcf8Yh2ySTb7ipaFL8qSEX26tqUDdPf1RQBmmRuZG4SnRd8DNpp5vE1zDHnKNStiFDQsce49Q7fyp8Yp
+
 Rust desktop monitor for Salvium daemon RPC and wallet RPC.
 
 The app is built with `iced` and opens a native window titled `Salvium Monitor`. It provides:
@@ -12,7 +14,7 @@ The app is built with `iced` and opens a native window titled `Salvium Monitor`.
 
 ## Current Behavior
 
-The monitor is no longer a placeholder. It currently supports:
+It currently supports:
 
 - HTTP and HTTPS transport selection for daemon and wallet RPC
 - RPC login enable/disable for daemon and wallet
