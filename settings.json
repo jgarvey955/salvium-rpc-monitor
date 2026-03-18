@@ -1,0 +1,16 @@
+{
+  "daemon_ip": "127.0.0.1",
+  "daemon_port": 19081,
+  "daemon_transport": "http",
+  "daemon_login_enabled": false,
+  "daemon_login_username": "",
+  "daemon_login_password": "",
+  "wallet_rpc_enabled": true,
+  "wallet_ip": "127.0.0.1",
+  "wallet_port": 19092,
+  "wallet_transport": "https",
+  "wallet_login_enabled": true,
+  "wallet_login_username": "",
+  "wallet_login_password": "",
+  "poll_frequency_seconds": 1
+}
