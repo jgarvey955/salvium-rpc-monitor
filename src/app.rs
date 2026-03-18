@@ -4,11 +4,16 @@ use crate::inventory::{
     is_read_only_method, load_inventory, method_names, parse_input_value, presets_for_method,
 };
 use crate::rpc::RpcBundle;
-use crate::settings::Settings;
+use crate::settings::{Settings, WindowState};
 use chrono::Local;
-use iced::widget::{button, column, container, pick_list, row, scrollable, text, text_input};
+use iced::widget::operation::{focus, is_focused, move_cursor_to_end};
+use iced::widget::{
+    button, column, container, pick_list, row, scrollable, text, text_input, tooltip,
+};
 use iced::{
-    Alignment, Background, Border, Color, Element, Fill, Shadow, Subscription, Task, Theme, window,
+    Alignment, Background, Border, Color, Element, Fill, Shadow, Size, Subscription, Task,
+    Theme,
+    keyboard, widget, window,
 };
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -26,8 +31,20 @@ const TEXT_MUTED: Color = Color::from_rgb(0.63, 0.65, 0.68);
 const SUCCESS: Color = Color::from_rgb(0.21, 0.82, 0.47);
 const DANGER: Color = Color::from_rgb(0.93, 0.27, 0.33);
 const DEFAULT_ADDRESS: &str = "SC11UA22DFrAQerDwJwcf8Yh2ySTb7ipaFL8qSEX26tqUDdPf1RQBmmRuZG4SnRd8DNpp5vE1zDHnKNStiFDQsce49Q7fyp8Yp";
+const DEFAULT_RPC_HOST: &str = "127.0.0.1";
+const DEFAULT_WALLET_USERNAME_HINT: &str = "walletrpc";
 const DAEMON_NORMAL_PORT: &str = "19081";
 const DAEMON_RESTRICTED_PORT: &str = "19089";
+const KEYBOARD_UNFOCUS_ID: &str = "__salvium_monitor_keyboard_unfocus__";
+const DAEMON_IP_INPUT_ID: &str = "daemon_ip_input";
+const DAEMON_PORT_INPUT_ID: &str = "daemon_port_input";
+const DAEMON_LOGIN_USERNAME_INPUT_ID: &str = "daemon_login_username_input";
+const DAEMON_LOGIN_PASSWORD_INPUT_ID: &str = "daemon_login_password_input";
+const WALLET_IP_INPUT_ID: &str = "wallet_ip_input";
+const WALLET_PORT_INPUT_ID: &str = "wallet_port_input";
+const WALLET_LOGIN_USERNAME_INPUT_ID: &str = "wallet_login_username_input";
+const WALLET_LOGIN_PASSWORD_INPUT_ID: &str = "wallet_login_password_input";
+const POLL_FREQUENCY_INPUT_ID: &str = "poll_frequency_input";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -44,9 +61,19 @@ enum Screen {
 }
 
 #[derive(Debug, Clone)]
-pub enum Message {
+pub(crate) enum Message {
     Refresh,
     StatusTick,
+    KeyboardEvent(keyboard::Event),
+    FocusProbeResult {
+        token: u64,
+        index: usize,
+        focused: bool,
+    },
+    WindowResized(Size),
+    CopyToClipboard(String),
+    PasteIntoField(TextFieldTarget),
+    ClipboardPasted(TextFieldTarget, Option<String>),
     SelectView(View),
     SelectDaemonMethod(String),
     SelectDaemonParam(String),
@@ -99,6 +126,61 @@ struct PollOutcome {
     error: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FocusDirection {
+    Next,
+    Previous,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActionTarget {
+    TopHome,
+    TopDaemon,
+    TopWallet,
+    TopPreferences,
+    TopRefresh,
+    TopExit,
+    SidebarHome,
+    SidebarDaemon,
+    SidebarWallet,
+    SidebarPreferences,
+    ToggleDaemonRestrictedMode,
+    ToggleDaemonLoginEnabled,
+    ToggleWalletEnabled,
+    ToggleWalletLoginEnabled,
+    DaemonPoll,
+    WalletPoll,
+    SaveSettings,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum KeyboardTarget {
+    Input(widget::Id),
+    Action(ActionTarget),
+}
+
+#[derive(Debug, Clone)]
+struct PendingFocusProbe {
+    token: u64,
+    direction: FocusDirection,
+    remaining: usize,
+    focused_index: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum TextFieldTarget {
+    DaemonIp,
+    DaemonPort,
+    DaemonLoginUsername,
+    DaemonLoginPassword,
+    WalletIp,
+    WalletPort,
+    WalletLoginUsername,
+    WalletLoginPassword,
+    PollFrequency,
+    RequestField(RpcKind, String),
+}
+
 pub struct AppState {
     screen: Screen,
     view: View,
@@ -145,6 +227,9 @@ pub struct AppState {
     daemon_field_inputs: BTreeMap<String, String>,
     wallet_field_inputs: BTreeMap<String, String>,
     poll_frequency_input: String,
+    keyboard_focus: Option<KeyboardTarget>,
+    pending_focus_probe: Option<PendingFocusProbe>,
+    next_focus_probe_token: u64,
 }
 
 impl Default for AppState {
@@ -155,19 +240,26 @@ impl Default for AppState {
 
 impl AppState {
     pub fn subscription(&self) -> Subscription<Message> {
-        if self.screen != Screen::Dashboard {
-            return Subscription::none();
+        let mut subscriptions = vec![
+            keyboard::listen().map(Message::KeyboardEvent),
+            window::resize_events().map(|(_id, size)| Message::WindowResized(size)),
+        ];
+
+        if self.screen == Screen::Dashboard {
+            let seconds = self
+                .poll_frequency_input
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .filter(|value| *value > 0)
+                .unwrap_or(10);
+
+            subscriptions.push(
+                iced::time::every(Duration::from_secs(seconds)).map(|_| Message::StatusTick),
+            );
         }
 
-        let seconds = self
-            .poll_frequency_input
-            .trim()
-            .parse::<u64>()
-            .ok()
-            .filter(|value| *value > 0)
-            .unwrap_or(10);
-
-        iced::time::every(Duration::from_secs(seconds)).map(|_| Message::StatusTick)
+        Subscription::batch(subscriptions)
     }
 
     pub fn init() -> Self {
@@ -184,6 +276,9 @@ impl AppState {
         let daemon_method =
             daemon_default_method(&daemon_inventory, settings.daemon_restricted_mode);
         let wallet_method = default_method(RpcKind::Wallet, &wallet_inventory);
+        let empty_if_missing = |value: String| {
+            if settings_exist { value } else { String::new() }
+        };
 
         let mut state = Self {
             screen: if settings_exist {
@@ -229,23 +324,26 @@ impl AppState {
             wallet_param: None,
             selected_daemon_output: None,
             selected_wallet_output: None,
-            daemon_ip_input: settings.daemon_ip.clone(),
-            daemon_port_input: settings.daemon_port.to_string(),
+            daemon_ip_input: empty_if_missing(settings.daemon_ip.clone()),
+            daemon_port_input: empty_if_missing(settings.daemon_port.to_string()),
             daemon_transport_input: settings.daemon_transport.clone(),
             daemon_restricted_mode: settings.daemon_restricted_mode,
             daemon_login_enabled: settings.daemon_login_enabled,
-            daemon_login_username_input: settings.daemon_login_username.clone(),
-            daemon_login_password_input: settings.daemon_login_password.clone(),
+            daemon_login_username_input: empty_if_missing(settings.daemon_login_username.clone()),
+            daemon_login_password_input: empty_if_missing(settings.daemon_login_password.clone()),
             wallet_rpc_enabled: settings.wallet_rpc_enabled,
-            wallet_ip_input: settings.wallet_ip.clone(),
-            wallet_port_input: settings.wallet_port.to_string(),
+            wallet_ip_input: empty_if_missing(settings.wallet_ip.clone()),
+            wallet_port_input: empty_if_missing(settings.wallet_port.to_string()),
             wallet_transport_input: settings.wallet_transport.clone(),
             wallet_login_enabled: settings.wallet_login_enabled,
-            wallet_login_username_input: settings.wallet_login_username.clone(),
-            wallet_login_password_input: settings.wallet_login_password.clone(),
+            wallet_login_username_input: empty_if_missing(settings.wallet_login_username.clone()),
+            wallet_login_password_input: empty_if_missing(settings.wallet_login_password.clone()),
             daemon_field_inputs: BTreeMap::new(),
             wallet_field_inputs: BTreeMap::new(),
-            poll_frequency_input: settings.poll_frequency_seconds.to_string(),
+            poll_frequency_input: empty_if_missing(settings.poll_frequency_seconds.to_string()),
+            keyboard_focus: None,
+            pending_focus_probe: None,
+            next_focus_probe_token: 1,
         };
 
         state.ensure_daemon_method_selection();
@@ -278,8 +376,33 @@ impl AppState {
                 self.refresh_status();
                 return Task::none();
             }
+            Message::KeyboardEvent(event) => return self.handle_keyboard_event(event),
+            Message::FocusProbeResult {
+                token,
+                index,
+                focused,
+            } => return self.handle_focus_probe_result(token, index, focused),
+            Message::WindowResized(size) => {
+                self.persist_window_size(size);
+                return Task::none();
+            }
+            Message::CopyToClipboard(value) => {
+                return iced::clipboard::write::<Message>(value);
+            }
+            Message::PasteIntoField(target) => {
+                let target = target.clone();
+                return iced::clipboard::read().map(move |contents| {
+                    Message::ClipboardPasted(target.clone(), contents)
+                });
+            }
+            Message::ClipboardPasted(target, Some(contents)) => {
+                return self.apply_clipboard_paste(target, contents);
+            }
+            Message::ClipboardPasted(_, None) => return Task::none(),
             Message::SelectView(view) => {
                 self.view = view;
+                self.keyboard_focus = None;
+                self.pending_focus_probe = None;
                 return Task::none();
             }
             Message::SelectDaemonMethod(method) => {
@@ -368,6 +491,8 @@ impl AppState {
                     Ok(()) => {
                         self.screen = Screen::Dashboard;
                         self.view = View::Home;
+                        self.keyboard_focus = None;
+                        self.pending_focus_probe = None;
                     }
                     Err(error) => self.error = Some(error),
                 }
@@ -467,25 +592,29 @@ impl AppState {
             self.menu_button(
                 "Home",
                 Message::SelectView(View::Home),
-                self.view == View::Home
+                self.view == View::Home,
+                ActionTarget::TopHome,
             ),
             self.menu_button(
                 "Daemon",
                 Message::SelectView(View::Daemon),
-                self.view == View::Daemon
+                self.view == View::Daemon,
+                ActionTarget::TopDaemon,
             ),
             self.menu_button(
                 "Wallet RPC",
                 Message::SelectView(View::WalletRpc),
-                self.view == View::WalletRpc
+                self.view == View::WalletRpc,
+                ActionTarget::TopWallet,
             ),
             self.menu_button(
                 "Preferences",
                 Message::SelectView(View::Preferences),
-                self.view == View::Preferences
+                self.view == View::Preferences,
+                ActionTarget::TopPreferences,
             ),
-            self.menu_button("Refresh", Message::Refresh, false),
-            self.menu_button("Exit", Message::ExitRequested, false),
+            self.menu_button("Refresh", Message::Refresh, false, ActionTarget::TopRefresh),
+            self.menu_button("Exit", Message::ExitRequested, false, ActionTarget::TopExit),
         ]
         .spacing(10)
         .align_y(Alignment::Center);
@@ -664,6 +793,7 @@ impl AppState {
         .padding([10, 14])
         .text_size(15)
         .style(daemon_pick_list_style);
+        let show_param_picker = param_options.len() > 1;
 
         let param_picker = match kind {
             RpcKind::Daemon => pick_list(param_options, selected_param, Message::SelectDaemonParam),
@@ -674,52 +804,77 @@ impl AppState {
         .text_size(15)
         .style(daemon_pick_list_style);
 
-        let header = container(
-            column![
-                row![
-                    text(title).size(28).color(TEXT_MAIN),
-                    method_picker,
-                    self.menu_button(
-                        "Poll",
-                        match kind {
-                            RpcKind::Daemon => Message::PollDaemonSelection,
-                            RpcKind::Wallet => Message::PollWalletSelection,
-                        },
-                        false
-                    ),
-                ]
-                .spacing(18)
-                .align_y(Alignment::Center),
+        let source_text = match (kind, show_param_picker) {
+            (RpcKind::Daemon, true) => {
+                "Methods and parameter templates are loaded from rpc.output."
+            }
+            (RpcKind::Daemon, false) => "Methods are loaded from rpc.output.",
+            (RpcKind::Wallet, true) => {
+                "Methods and parameter templates are loaded from walletrpc.output."
+            }
+            (RpcKind::Wallet, false) => "Methods are loaded from walletrpc.output.",
+        };
+
+        let mut header_content = column![
+            row![
+                text(title).size(28).color(TEXT_MAIN),
+                method_picker,
+                self.menu_button(
+                    "Poll",
+                    match kind {
+                        RpcKind::Daemon => Message::PollDaemonSelection,
+                        RpcKind::Wallet => Message::PollWalletSelection,
+                    },
+                    false,
+                    match kind {
+                        RpcKind::Daemon => ActionTarget::DaemonPoll,
+                        RpcKind::Wallet => ActionTarget::WalletPoll,
+                    },
+                ),
+            ]
+            .spacing(18)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(14);
+
+        if show_param_picker {
+            header_content = header_content.push(
                 row![text("Template").size(15).color(TEXT_MUTED), param_picker]
                     .spacing(18)
                     .align_y(Alignment::Center),
-                text(match kind {
-                    RpcKind::Daemon =>
-                        "Methods and parameter templates are loaded from rpc.output.",
-                    RpcKind::Wallet =>
-                        "Methods and parameter templates are loaded from walletrpc.output.",
-                })
-                .size(15)
-                .color(TEXT_MUTED),
-                input_editor,
-                summary,
-            ]
-            .spacing(14),
-        )
+            );
+        }
+
+        header_content = header_content
+            .push(text(source_text).size(15).color(TEXT_MUTED))
+            .push(input_editor)
+            .push(summary);
+
+        let header = container(header_content)
         .padding(22)
         .style(panel_style(BG_PANEL, Some(TEXT_MAIN), Some(22.0)));
 
         let raw_panel = container(
-            scrollable(
-                container(text(output).size(14).color(TEXT_MAIN))
-                    .padding(18)
-                    .style(panel_style(BG_PANEL_ALT, Some(TEXT_MAIN), Some(18.0))),
-            )
-            .direction(default_vertical_scroll_direction())
-            .style(content_scrollable_style)
-            .spacing(10)
-            .height(Fill)
-            .width(Fill),
+            column![
+                row![
+                    text("Captured Output").size(18).color(TEXT_MAIN),
+                    container(self.copy_button(output.clone()))
+                        .width(Fill)
+                        .align_right(Fill),
+                ]
+                .align_y(Alignment::Center),
+                scrollable(
+                    container(text(output).size(14).color(TEXT_MAIN))
+                        .padding(18)
+                        .style(panel_style(BG_PANEL_ALT, Some(TEXT_MAIN), Some(18.0))),
+                )
+                .direction(default_vertical_scroll_direction())
+                .style(content_scrollable_style)
+                .spacing(10)
+                .height(Fill)
+                .width(Fill),
+            ]
+            .spacing(12),
         )
         .height(Fill)
         .style(panel_style(BG_PANEL, Some(TEXT_MAIN), Some(22.0)))
@@ -778,14 +933,18 @@ impl AppState {
                 row![
                     self.field(
                         "Daemon IP",
-                        "192.168.0.30",
+                        DEFAULT_RPC_HOST,
                         &self.daemon_ip_input,
+                        widget::Id::new(DAEMON_IP_INPUT_ID),
+                        TextFieldTarget::DaemonIp,
                         Message::UpdateDaemonIp
                     ),
                     self.field(
                         "Daemon Port",
                         DAEMON_NORMAL_PORT,
                         &self.daemon_port_input,
+                        widget::Id::new(DAEMON_PORT_INPUT_ID),
+                        TextFieldTarget::DaemonPort,
                         Message::UpdateDaemonPort
                     ),
                 ]
@@ -798,18 +957,22 @@ impl AppState {
                 self.toggle_field(
                     "Daemon Restricted Mode",
                     self.daemon_restricted_mode,
+                    ActionTarget::ToggleDaemonRestrictedMode,
                     Message::ToggleDaemonRestrictedMode
                 ),
                 row![
                     self.toggle_field(
                         "RPC Login Enabled",
                         self.daemon_login_enabled,
+                        ActionTarget::ToggleDaemonLoginEnabled,
                         Message::ToggleDaemonLoginEnabled
                     ),
                     self.field(
                         "RPC Username",
                         "optional",
                         &self.daemon_login_username_input,
+                        widget::Id::new(DAEMON_LOGIN_USERNAME_INPUT_ID),
+                        TextFieldTarget::DaemonLoginUsername,
                         Message::UpdateDaemonLoginUsername
                     ),
                 ]
@@ -818,6 +981,8 @@ impl AppState {
                     "RPC Password",
                     "optional",
                     &self.daemon_login_password_input,
+                    widget::Id::new(DAEMON_LOGIN_PASSWORD_INPUT_ID),
+                    TextFieldTarget::DaemonLoginPassword,
                     Message::UpdateDaemonLoginPassword
                 ),
             ]
@@ -832,19 +997,24 @@ impl AppState {
                 self.toggle_field(
                     "Wallet RPC Enabled",
                     self.wallet_rpc_enabled,
+                    ActionTarget::ToggleWalletEnabled,
                     Message::ToggleWalletEnabled
                 ),
                 row![
                     self.field(
                         "Wallet IP",
-                        "192.168.0.30",
+                        DEFAULT_RPC_HOST,
                         &self.wallet_ip_input,
+                        widget::Id::new(WALLET_IP_INPUT_ID),
+                        TextFieldTarget::WalletIp,
                         Message::UpdateWalletIp
                     ),
                     self.field(
                         "Wallet Port",
                         "19092",
                         &self.wallet_port_input,
+                        widget::Id::new(WALLET_PORT_INPUT_ID),
+                        TextFieldTarget::WalletPort,
                         Message::UpdateWalletPort
                     ),
                 ]
@@ -858,12 +1028,15 @@ impl AppState {
                     self.toggle_field(
                         "RPC Login Enabled",
                         self.wallet_login_enabled,
+                        ActionTarget::ToggleWalletLoginEnabled,
                         Message::ToggleWalletLoginEnabled
                     ),
                     self.field(
                         "RPC Username",
-                        "salviumuser",
+                        DEFAULT_WALLET_USERNAME_HINT,
                         &self.wallet_login_username_input,
+                        widget::Id::new(WALLET_LOGIN_USERNAME_INPUT_ID),
+                        TextFieldTarget::WalletLoginUsername,
                         Message::UpdateWalletLoginUsername
                     ),
                 ]
@@ -872,6 +1045,8 @@ impl AppState {
                     "RPC Password",
                     "wallet rpc password",
                     &self.wallet_login_password_input,
+                    widget::Id::new(WALLET_LOGIN_PASSWORD_INPUT_ID),
+                    TextFieldTarget::WalletLoginPassword,
                     Message::UpdateWalletLoginPassword
                 ),
             ]
@@ -888,12 +1063,16 @@ impl AppState {
                 "Poll Frequency (seconds)",
                 "10",
                 &self.poll_frequency_input,
+                widget::Id::new(POLL_FREQUENCY_INPUT_ID),
+                TextFieldTarget::PollFrequency,
                 Message::UpdatePollFrequency
             ),
             self.message_panel(),
             button(text(action_label).size(16))
                 .padding([12, 20])
-                .style(primary_button_style)
+                .style(move |_theme, status| {
+                    primary_button_style(self.is_action_focused(ActionTarget::SaveSettings), status)
+                })
                 .on_press(Message::SaveAndConnect),
         ]
         .spacing(16);
@@ -909,15 +1088,27 @@ impl AppState {
         label: &'static str,
         placeholder: &'static str,
         value: &str,
+        id: widget::Id,
+        paste_target: TextFieldTarget,
         on_input: fn(String) -> Message,
     ) -> Element<'_, Message> {
         let input = text_input(placeholder, value)
+            .id(id)
             .on_input(on_input)
             .padding(12)
             .size(16)
+            .width(Fill)
             .style(input_style);
 
-        container(column![text(label).size(13).color(TEXT_MUTED), input].spacing(8))
+        container(
+            column![
+                text(label).size(13).color(TEXT_MUTED),
+                row![input, self.paste_button(paste_target)]
+                    .spacing(8)
+                    .align_y(Alignment::Center),
+            ]
+            .spacing(8),
+        )
             .width(Fill)
             .into()
     }
@@ -994,18 +1185,30 @@ impl AppState {
         let field_name = field.name.clone();
 
         let input = match kind {
-            RpcKind::Daemon => text_input(&field.name, &value).on_input(move |value| {
-                Message::UpdateDaemonRequestField(field_name.clone(), value)
-            }),
-            RpcKind::Wallet => text_input(&field.name, &value).on_input(move |value| {
-                Message::UpdateWalletRequestField(field_name.clone(), value)
-            }),
+            RpcKind::Daemon => text_input(&field.name, &value)
+                .id(self.request_field_input_id(kind, &field.name))
+                .on_input(move |value| Message::UpdateDaemonRequestField(field_name.clone(), value)),
+            RpcKind::Wallet => text_input(&field.name, &value)
+                .id(self.request_field_input_id(kind, &field.name))
+                .on_input(move |value| Message::UpdateWalletRequestField(field_name.clone(), value)),
         }
         .padding(12)
         .size(15)
+        .width(Fill)
         .style(input_style);
 
-        container(column![text(label).size(13).color(TEXT_MUTED), input].spacing(8))
+        container(
+            column![
+                text(label).size(13).color(TEXT_MUTED),
+                row![
+                    input,
+                    self.paste_button(TextFieldTarget::RequestField(kind, field.name.clone()))
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            ]
+            .spacing(8),
+        )
             .width(Fill)
             .into()
     }
@@ -1014,6 +1217,7 @@ impl AppState {
         &self,
         label: &'static str,
         enabled: bool,
+        target: ActionTarget,
         message: Message,
     ) -> Element<'_, Message> {
         container(
@@ -1025,7 +1229,9 @@ impl AppState {
                         .color(TEXT_MAIN)
                 )
                 .padding([12, 14])
-                .style(move |_theme, status| top_button_style(enabled, status))
+                .style(move |_theme, status| {
+                    top_button_style(enabled, self.is_action_focused(target), status)
+                })
                 .on_press(message),
             ]
             .spacing(8),
@@ -1034,12 +1240,21 @@ impl AppState {
         .into()
     }
 
-    fn info_card<'a>(&self, label: &'a str, value: impl Into<String>) -> Element<'a, Message> {
+    fn info_card<'a>(
+        &'a self,
+        label: &'a str,
+        value: impl Into<String>,
+    ) -> Element<'a, Message> {
         let value = value.into();
         container(
             column![
                 text(label).size(13).color(TEXT_MUTED),
-                text(value).size(24).color(TEXT_MAIN)
+                row![
+                    container(text(value.clone()).size(24).color(TEXT_MAIN)).width(Fill),
+                    self.copy_button(value),
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
             ]
             .spacing(10),
         )
@@ -1053,9 +1268,16 @@ impl AppState {
         container(
             column![
                 text(label).size(13).color(TEXT_MUTED),
-                container(text(value).size(18).color(TEXT_MAIN))
-                    .padding([12, 14])
-                    .style(panel_style(BG_PANEL_ALT, Some(TEXT_MAIN), Some(14.0))),
+                container(
+                    row![
+                        container(text(value.clone()).size(18).color(TEXT_MAIN)).width(Fill),
+                        self.copy_button(value),
+                    ]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                )
+                .padding([12, 14])
+                .style(panel_style(BG_PANEL_ALT, Some(TEXT_MAIN), Some(14.0))),
             ]
             .spacing(8),
         )
@@ -1166,14 +1388,20 @@ impl AppState {
         .into()
     }
 
-    fn metric_line<'a>(&self, label: &'a str, value: impl Into<String>) -> Element<'a, Message> {
+    fn metric_line<'a>(
+        &'a self,
+        label: &'a str,
+        value: impl Into<String>,
+    ) -> Element<'a, Message> {
         let value = value.into();
         row![
             text(label).size(13).color(TEXT_MUTED),
-            container(text(value).size(15).color(TEXT_MAIN))
+            container(text(value.clone()).size(15).color(TEXT_MAIN))
                 .width(Fill)
                 .align_right(Fill),
+            self.copy_button(value),
         ]
+        .spacing(10)
         .align_y(Alignment::Center)
         .into()
     }
@@ -1188,16 +1416,26 @@ impl AppState {
         })
     }
 
-    fn long_value_line<'a>(&self, label: &'a str, value: &'a str) -> Element<'a, Message> {
+    fn long_value_line<'a>(
+        &'a self,
+        label: &'a str,
+        value: &'a str,
+    ) -> Element<'a, Message> {
         container(
             column![
                 text(label).size(13).color(TEXT_MUTED),
-                container(
-                    text(value)
-                        .size(13)
-                        .color(TEXT_MAIN)
-                        .wrapping(iced::widget::text::Wrapping::None)
-                )
+                container(row![
+                    container(
+                        text(value)
+                            .size(13)
+                            .color(TEXT_MAIN)
+                            .wrapping(iced::widget::text::Wrapping::None)
+                    )
+                    .width(Fill),
+                    self.copy_button(value.to_string()),
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center))
                 .width(Fill)
                 .padding([12, 14])
                 .style(panel_style(BG_PANEL, Some(TEXT_MAIN), Some(14.0))),
@@ -1209,20 +1447,19 @@ impl AppState {
     }
 
     fn message_panel(&self) -> Element<'_, Message> {
-        let notice = self
-            .notice
-            .as_deref()
-            .map(|message| text(message).size(14).color(TEXT_MUTED));
+        let notice = self.notice.as_deref().map(|message| {
+            self.copyable_message_line(message, TEXT_MUTED)
+        });
         let error = self
             .error
             .as_deref()
-            .map(|message| text(message).size(14).color(DANGER));
+            .map(|message| self.copyable_message_line(message, DANGER));
 
         let content = match (notice, error) {
             (Some(notice), Some(error)) => column![notice, error].spacing(8),
             (Some(notice), None) => column![notice],
             (None, Some(error)) => column![error],
-            (None, None) => column![text("No warnings.").size(14).color(TEXT_MUTED)],
+            (None, None) => column![self.copyable_message_line("No warnings.", TEXT_MUTED)],
         };
 
         container(content)
@@ -1233,15 +1470,29 @@ impl AppState {
 
     fn nav_button(&self, label: &'static str, view: View) -> Element<'_, Message> {
         let active = self.view == view;
+        let target = match view {
+            View::Home => ActionTarget::SidebarHome,
+            View::Daemon => ActionTarget::SidebarDaemon,
+            View::WalletRpc => ActionTarget::SidebarWallet,
+            View::Preferences => ActionTarget::SidebarPreferences,
+        };
         button(
             row![
                 text(label)
                     .size(18)
-                    .color(if active { TEXT_MAIN } else { TEXT_MUTED }),
+                    .color(if active || self.is_action_focused(target) {
+                        TEXT_MAIN
+                    } else {
+                        TEXT_MUTED
+                    }),
                 container(
                     text(">")
                         .size(16)
-                        .color(if active { ACCENT } else { TEXT_MUTED })
+                        .color(if active || self.is_action_focused(target) {
+                            ACCENT
+                        } else {
+                            TEXT_MUTED
+                        })
                 )
                 .width(Fill)
                 .align_right(Fill),
@@ -1250,7 +1501,9 @@ impl AppState {
         )
         .width(Fill)
         .padding([14, 16])
-        .style(move |_theme, status| sidebar_button_style(active, status))
+        .style(move |_theme, status| {
+            sidebar_button_style(active, self.is_action_focused(target), status)
+        })
         .on_press(Message::SelectView(view))
         .into()
     }
@@ -1260,12 +1513,367 @@ impl AppState {
         label: &'static str,
         message: Message,
         active: bool,
+        target: ActionTarget,
     ) -> Element<'_, Message> {
         button(text(label).size(14).color(TEXT_MAIN))
             .padding([8, 12])
-            .style(move |_theme, status| top_button_style(active, status))
+            .style(move |_theme, status| {
+                top_button_style(active, self.is_action_focused(target), status)
+            })
             .on_press(message)
             .into()
+    }
+
+    fn keyboard_focus_targets(&self) -> Vec<KeyboardTarget> {
+        let mut targets = Vec::new();
+
+        if self.screen == Screen::Dashboard {
+            targets.extend([
+                KeyboardTarget::Action(ActionTarget::TopHome),
+                KeyboardTarget::Action(ActionTarget::TopDaemon),
+                KeyboardTarget::Action(ActionTarget::TopWallet),
+                KeyboardTarget::Action(ActionTarget::TopPreferences),
+                KeyboardTarget::Action(ActionTarget::TopRefresh),
+                KeyboardTarget::Action(ActionTarget::TopExit),
+                KeyboardTarget::Action(ActionTarget::SidebarHome),
+                KeyboardTarget::Action(ActionTarget::SidebarDaemon),
+                KeyboardTarget::Action(ActionTarget::SidebarWallet),
+                KeyboardTarget::Action(ActionTarget::SidebarPreferences),
+            ]);
+        }
+
+        match self.screen {
+            Screen::Setup => targets.extend(self.settings_focus_targets()),
+            Screen::Dashboard => match self.view {
+                View::Home => {}
+                View::Daemon => {
+                    for field in self
+                        .selected_method_spec(RpcKind::Daemon)
+                        .map(|method| method.request_fields.iter())
+                        .into_iter()
+                        .flatten()
+                    {
+                        targets.push(KeyboardTarget::Input(
+                            self.request_field_input_id(RpcKind::Daemon, &field.name),
+                        ));
+                    }
+                    targets.push(KeyboardTarget::Action(ActionTarget::DaemonPoll));
+                }
+                View::WalletRpc => {
+                    for field in self
+                        .selected_method_spec(RpcKind::Wallet)
+                        .map(|method| method.request_fields.iter())
+                        .into_iter()
+                        .flatten()
+                    {
+                        targets.push(KeyboardTarget::Input(
+                            self.request_field_input_id(RpcKind::Wallet, &field.name),
+                        ));
+                    }
+                    targets.push(KeyboardTarget::Action(ActionTarget::WalletPoll));
+                }
+                View::Preferences => targets.extend(self.settings_focus_targets()),
+            },
+        }
+
+        targets
+    }
+
+    fn settings_focus_targets(&self) -> Vec<KeyboardTarget> {
+        vec![
+            KeyboardTarget::Input(widget::Id::new(DAEMON_IP_INPUT_ID)),
+            KeyboardTarget::Input(widget::Id::new(DAEMON_PORT_INPUT_ID)),
+            KeyboardTarget::Action(ActionTarget::ToggleDaemonRestrictedMode),
+            KeyboardTarget::Action(ActionTarget::ToggleDaemonLoginEnabled),
+            KeyboardTarget::Input(widget::Id::new(DAEMON_LOGIN_USERNAME_INPUT_ID)),
+            KeyboardTarget::Input(widget::Id::new(DAEMON_LOGIN_PASSWORD_INPUT_ID)),
+            KeyboardTarget::Action(ActionTarget::ToggleWalletEnabled),
+            KeyboardTarget::Input(widget::Id::new(WALLET_IP_INPUT_ID)),
+            KeyboardTarget::Input(widget::Id::new(WALLET_PORT_INPUT_ID)),
+            KeyboardTarget::Action(ActionTarget::ToggleWalletLoginEnabled),
+            KeyboardTarget::Input(widget::Id::new(WALLET_LOGIN_USERNAME_INPUT_ID)),
+            KeyboardTarget::Input(widget::Id::new(WALLET_LOGIN_PASSWORD_INPUT_ID)),
+            KeyboardTarget::Input(widget::Id::new(POLL_FREQUENCY_INPUT_ID)),
+            KeyboardTarget::Action(ActionTarget::SaveSettings),
+        ]
+    }
+
+    fn handle_keyboard_event(&mut self, event: keyboard::Event) -> Task<Message> {
+        let keyboard::Event::KeyPressed { key, modifiers, .. } = event else {
+            return Task::none();
+        };
+
+        match key.as_ref() {
+            keyboard::Key::Named(keyboard::key::Named::Tab) => {
+                self.begin_focus_probe(if modifiers.shift() {
+                    FocusDirection::Previous
+                } else {
+                    FocusDirection::Next
+                })
+            }
+            keyboard::Key::Named(keyboard::key::Named::Space) => self.activate_focused_action(),
+            _ => Task::none(),
+        }
+    }
+
+    fn begin_focus_probe(&mut self, direction: FocusDirection) -> Task<Message> {
+        let input_targets = self
+            .keyboard_focus_targets()
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, target)| match target {
+                KeyboardTarget::Input(id) => Some((index, id)),
+                KeyboardTarget::Action(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        if input_targets.is_empty() {
+            return self.advance_keyboard_focus(direction, self.keyboard_focus_index());
+        }
+
+        let token = self.next_focus_probe_token;
+        self.next_focus_probe_token += 1;
+        self.pending_focus_probe = Some(PendingFocusProbe {
+            token,
+            direction,
+            remaining: input_targets.len(),
+            focused_index: None,
+        });
+
+        Task::batch(input_targets.into_iter().map(|(index, id)| {
+            is_focused(id).map(move |focused| Message::FocusProbeResult {
+                token,
+                index,
+                focused,
+            })
+        }))
+    }
+
+    fn handle_focus_probe_result(
+        &mut self,
+        token: u64,
+        index: usize,
+        focused: bool,
+    ) -> Task<Message> {
+        let Some(probe) = self.pending_focus_probe.as_mut() else {
+            return Task::none();
+        };
+
+        if probe.token != token {
+            return Task::none();
+        }
+
+        if focused {
+            probe.focused_index = Some(index);
+        }
+
+        probe.remaining = probe.remaining.saturating_sub(1);
+        if probe.remaining > 0 {
+            return Task::none();
+        }
+
+        let direction = probe.direction;
+        let current_index = probe.focused_index.or_else(|| self.keyboard_focus_index());
+        self.pending_focus_probe = None;
+        self.advance_keyboard_focus(direction, current_index)
+    }
+
+    fn advance_keyboard_focus(
+        &mut self,
+        direction: FocusDirection,
+        current_index: Option<usize>,
+    ) -> Task<Message> {
+        let targets = self.keyboard_focus_targets();
+        if targets.is_empty() {
+            self.keyboard_focus = None;
+            return Task::none();
+        }
+
+        let next_index = match (direction, current_index) {
+            (FocusDirection::Next, Some(index)) => (index + 1) % targets.len(),
+            (FocusDirection::Previous, Some(0)) | (FocusDirection::Previous, None) => {
+                targets.len() - 1
+            }
+            (FocusDirection::Previous, Some(index)) => index - 1,
+            (FocusDirection::Next, None) => 0,
+        };
+
+        let target = targets[next_index].clone();
+        self.keyboard_focus = Some(target.clone());
+
+        match target {
+            KeyboardTarget::Input(id) => Task::batch([
+                focus(id.clone()),
+                move_cursor_to_end(id),
+            ]),
+            KeyboardTarget::Action(_) => focus(String::from(KEYBOARD_UNFOCUS_ID)),
+        }
+    }
+
+    fn keyboard_focus_index(&self) -> Option<usize> {
+        let current = self.keyboard_focus.as_ref()?;
+
+        self.keyboard_focus_targets()
+            .iter()
+            .position(|target| target == current)
+    }
+
+    fn activate_focused_action(&self) -> Task<Message> {
+        let Some(KeyboardTarget::Action(target)) = self.keyboard_focus else {
+            return Task::none();
+        };
+
+        Task::done(match target {
+            ActionTarget::TopHome | ActionTarget::SidebarHome => Message::SelectView(View::Home),
+            ActionTarget::TopDaemon | ActionTarget::SidebarDaemon => {
+                Message::SelectView(View::Daemon)
+            }
+            ActionTarget::TopWallet | ActionTarget::SidebarWallet => {
+                Message::SelectView(View::WalletRpc)
+            }
+            ActionTarget::TopPreferences | ActionTarget::SidebarPreferences => {
+                Message::SelectView(View::Preferences)
+            }
+            ActionTarget::TopRefresh => Message::Refresh,
+            ActionTarget::TopExit => Message::ExitRequested,
+            ActionTarget::ToggleDaemonRestrictedMode => Message::ToggleDaemonRestrictedMode,
+            ActionTarget::ToggleDaemonLoginEnabled => Message::ToggleDaemonLoginEnabled,
+            ActionTarget::ToggleWalletEnabled => Message::ToggleWalletEnabled,
+            ActionTarget::ToggleWalletLoginEnabled => Message::ToggleWalletLoginEnabled,
+            ActionTarget::DaemonPoll => Message::PollDaemonSelection,
+            ActionTarget::WalletPoll => Message::PollWalletSelection,
+            ActionTarget::SaveSettings => Message::SaveAndConnect,
+        })
+    }
+
+    fn is_action_focused(&self, target: ActionTarget) -> bool {
+        matches!(
+            self.keyboard_focus,
+            Some(KeyboardTarget::Action(current)) if current == target
+        )
+    }
+
+    fn apply_clipboard_paste(
+        &mut self,
+        target: TextFieldTarget,
+        contents: String,
+    ) -> Task<Message> {
+        let id = self.text_field_target_id(&target);
+        self.set_text_field_value(&target, contents);
+        self.keyboard_focus = Some(KeyboardTarget::Input(id.clone()));
+
+        Task::batch([focus(id.clone()), move_cursor_to_end(id)])
+    }
+
+    fn set_text_field_value(&mut self, target: &TextFieldTarget, value: String) {
+        match target {
+            TextFieldTarget::DaemonIp => self.daemon_ip_input = value,
+            TextFieldTarget::DaemonPort => self.daemon_port_input = value,
+            TextFieldTarget::DaemonLoginUsername => self.daemon_login_username_input = value,
+            TextFieldTarget::DaemonLoginPassword => self.daemon_login_password_input = value,
+            TextFieldTarget::WalletIp => self.wallet_ip_input = value,
+            TextFieldTarget::WalletPort => self.wallet_port_input = value,
+            TextFieldTarget::WalletLoginUsername => self.wallet_login_username_input = value,
+            TextFieldTarget::WalletLoginPassword => self.wallet_login_password_input = value,
+            TextFieldTarget::PollFrequency => self.poll_frequency_input = value,
+            TextFieldTarget::RequestField(RpcKind::Daemon, field_name) => {
+                self.daemon_field_inputs.insert(field_name.clone(), value);
+            }
+            TextFieldTarget::RequestField(RpcKind::Wallet, field_name) => {
+                self.wallet_field_inputs.insert(field_name.clone(), value);
+            }
+        }
+    }
+
+    fn text_field_target_id(&self, target: &TextFieldTarget) -> widget::Id {
+        match target {
+            TextFieldTarget::DaemonIp => widget::Id::new(DAEMON_IP_INPUT_ID),
+            TextFieldTarget::DaemonPort => widget::Id::new(DAEMON_PORT_INPUT_ID),
+            TextFieldTarget::DaemonLoginUsername => {
+                widget::Id::new(DAEMON_LOGIN_USERNAME_INPUT_ID)
+            }
+            TextFieldTarget::DaemonLoginPassword => {
+                widget::Id::new(DAEMON_LOGIN_PASSWORD_INPUT_ID)
+            }
+            TextFieldTarget::WalletIp => widget::Id::new(WALLET_IP_INPUT_ID),
+            TextFieldTarget::WalletPort => widget::Id::new(WALLET_PORT_INPUT_ID),
+            TextFieldTarget::WalletLoginUsername => {
+                widget::Id::new(WALLET_LOGIN_USERNAME_INPUT_ID)
+            }
+            TextFieldTarget::WalletLoginPassword => {
+                widget::Id::new(WALLET_LOGIN_PASSWORD_INPUT_ID)
+            }
+            TextFieldTarget::PollFrequency => widget::Id::new(POLL_FREQUENCY_INPUT_ID),
+            TextFieldTarget::RequestField(kind, field_name) => {
+                self.request_field_input_id(*kind, field_name)
+            }
+        }
+    }
+
+    fn request_field_input_id(&self, kind: RpcKind, field_name: &str) -> widget::Id {
+        let kind = match kind {
+            RpcKind::Daemon => "daemon",
+            RpcKind::Wallet => "wallet",
+        };
+
+        widget::Id::from(format!("request_field.{kind}.{field_name}"))
+    }
+
+    fn persist_window_size(&mut self, size: Size) {
+        let Some(window_state) = WindowState::from_size(size) else {
+            return;
+        };
+
+        if let Err(error) = window_state.save() {
+            if self.error.is_none() {
+                self.error = Some(format!("Failed to save window size: {error}"));
+            }
+        }
+    }
+
+    fn clipboard_button(
+        &self,
+        tooltip_label: &'static str,
+        message: Message,
+    ) -> Element<'_, Message> {
+        tooltip(
+            button(container(text("")).width(1).height(1))
+                .width(22)
+                .height(22)
+                .padding(0)
+                .style(clipboard_button_style)
+                .on_press(message),
+            container(text(tooltip_label).size(12).color(TEXT_MAIN))
+                .padding([6, 8])
+                .style(panel_style(BG_PANEL_ALT, Some(TEXT_MAIN), Some(10.0))),
+            widget::tooltip::Position::Top,
+        )
+        .gap(6)
+        .padding(6)
+        .style(panel_style(BG_PANEL_ALT, Some(TEXT_MAIN), Some(10.0)))
+        .into()
+    }
+
+    fn copy_button(&self, value: impl Into<String>) -> Element<'_, Message> {
+        self.clipboard_button("Copy", Message::CopyToClipboard(value.into()))
+    }
+
+    fn paste_button(&self, target: TextFieldTarget) -> Element<'_, Message> {
+        self.clipboard_button("Paste", Message::PasteIntoField(target))
+    }
+
+    fn copyable_message_line<'a>(
+        &'a self,
+        value: &'a str,
+        color: Color,
+    ) -> Element<'a, Message> {
+        row![
+            container(text(value).size(14).color(color)).width(Fill),
+            self.copy_button(value.to_string()),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Start)
+        .into()
     }
 
     fn connection_label(&self) -> &str {
@@ -1427,27 +2035,24 @@ impl AppState {
     }
 
     fn settings_from_inputs(&self) -> Result<Settings, String> {
-        let daemon_port =
-            self.daemon_port_input.trim().parse::<u16>().map_err(|_| {
-                "Daemon port must be a valid number between 0 and 65535.".to_string()
-            })?;
-        let wallet_port =
-            self.wallet_port_input.trim().parse::<u16>().map_err(|_| {
-                "Wallet port must be a valid number between 0 and 65535.".to_string()
-            })?;
-        let poll_frequency_seconds = self
-            .poll_frequency_input
-            .trim()
-            .parse::<u64>()
-            .map_err(|_| "Poll frequency must be a valid number of seconds.".to_string())?;
-
-        if self.daemon_ip_input.trim().is_empty() {
-            return Err("Daemon IP cannot be empty.".into());
-        }
-
-        if self.wallet_rpc_enabled && self.wallet_ip_input.trim().is_empty() {
-            return Err("Wallet IP cannot be empty when wallet RPC is enabled.".into());
-        }
+        let defaults = Settings::default();
+        let daemon_ip = trimmed_or_default(&self.daemon_ip_input, &defaults.daemon_ip);
+        let wallet_ip = trimmed_or_default(&self.wallet_ip_input, &defaults.wallet_ip);
+        let daemon_port = parse_or_default_u16(
+            &self.daemon_port_input,
+            defaults.daemon_port,
+            "Daemon port must be a valid number between 0 and 65535.",
+        )?;
+        let wallet_port = parse_or_default_u16(
+            &self.wallet_port_input,
+            defaults.wallet_port,
+            "Wallet port must be a valid number between 0 and 65535.",
+        )?;
+        let poll_frequency_seconds = parse_or_default_u64(
+            &self.poll_frequency_input,
+            defaults.poll_frequency_seconds,
+            "Poll frequency must be a valid number of seconds.",
+        )?;
 
         if self.daemon_login_enabled {
             if self.daemon_login_username_input.trim().is_empty() {
@@ -1480,7 +2085,7 @@ impl AppState {
         }
 
         Ok(Settings {
-            daemon_ip: self.daemon_ip_input.trim().to_string(),
+            daemon_ip,
             daemon_port,
             daemon_transport: normalize_transport(&self.daemon_transport_input, "http"),
             daemon_restricted_mode: self.daemon_restricted_mode,
@@ -1488,7 +2093,7 @@ impl AppState {
             daemon_login_username: self.daemon_login_username_input.trim().to_string(),
             daemon_login_password: self.daemon_login_password_input.trim().to_string(),
             wallet_rpc_enabled: self.wallet_rpc_enabled,
-            wallet_ip: self.wallet_ip_input.trim().to_string(),
+            wallet_ip,
             wallet_port,
             wallet_transport: normalize_transport(&self.wallet_transport_input, "https"),
             wallet_login_enabled: self.wallet_login_enabled,
@@ -2150,25 +2755,33 @@ fn panel_style(
     }
 }
 
-fn primary_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+fn primary_button_style(keyboard_focused: bool, status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Hovered => ACCENT,
         button::Status::Pressed => ACCENT_DIM,
         button::Status::Disabled => BG_PANEL,
+        _ if keyboard_focused => ACCENT,
         _ => ACCENT_DIM,
     };
 
     button::Style {
         background: Some(Background::Color(background)),
         text_color: TEXT_MAIN,
-        border: Border::default().rounded(14.0),
+        border: Border::default()
+            .rounded(14.0)
+            .width(if keyboard_focused { 1.4 } else { 1.0 })
+            .color(if keyboard_focused { ACCENT } else { Color::TRANSPARENT }),
         shadow: Shadow::default(),
         snap: false,
     }
 }
 
-fn top_button_style(active: bool, status: button::Status) -> button::Style {
-    let background = if active {
+fn top_button_style(
+    active: bool,
+    keyboard_focused: bool,
+    status: button::Status,
+) -> button::Style {
+    let background = if active || keyboard_focused {
         BG_PANEL_ALT
     } else {
         match status {
@@ -2183,15 +2796,19 @@ fn top_button_style(active: bool, status: button::Status) -> button::Style {
         text_color: TEXT_MAIN,
         border: Border::default()
             .rounded(12.0)
-            .width(1.0)
-            .color(BORDER_SOFT),
+            .width(if keyboard_focused { 1.4 } else { 1.0 })
+            .color(if keyboard_focused { ACCENT } else { BORDER_SOFT }),
         shadow: Shadow::default(),
         snap: false,
     }
 }
 
-fn sidebar_button_style(active: bool, status: button::Status) -> button::Style {
-    let background = if active {
+fn sidebar_button_style(
+    active: bool,
+    keyboard_focused: bool,
+    status: button::Status,
+) -> button::Style {
+    let background = if active || keyboard_focused {
         BG_PANEL_ALT
     } else {
         match status {
@@ -2201,14 +2818,46 @@ fn sidebar_button_style(active: bool, status: button::Status) -> button::Style {
         }
     };
 
-    let border_color = if active { ACCENT_DIM } else { BORDER_SOFT };
+    let border_color = if keyboard_focused {
+        ACCENT
+    } else if active {
+        ACCENT_DIM
+    } else {
+        BORDER_SOFT
+    };
 
     button::Style {
         background: Some(Background::Color(background)),
         text_color: TEXT_MAIN,
         border: Border::default()
             .rounded(14.0)
-            .width(if active { 1.2 } else { 1.0 })
+            .width(if active || keyboard_focused { 1.2 } else { 1.0 })
+            .color(border_color),
+        shadow: Shadow::default(),
+        snap: false,
+    }
+}
+
+fn clipboard_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+    let background = match status {
+        button::Status::Hovered => BG_PANEL_ALT,
+        button::Status::Pressed => BG_SIDEBAR,
+        button::Status::Disabled => BG_PANEL,
+        _ => BG_PANEL,
+    };
+
+    let border_color = match status {
+        button::Status::Hovered => ACCENT_DIM,
+        button::Status::Pressed => ACCENT,
+        _ => BORDER_SOFT,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TEXT_MAIN,
+        border: Border::default()
+            .rounded(7.0)
+            .width(1.0)
             .color(border_color),
         shadow: Shadow::default(),
         snap: false,
@@ -2244,6 +2893,33 @@ fn normalize_transport(value: &str, fallback: &str) -> String {
     match lowered.as_str() {
         "http" | "https" => lowered,
         _ => fallback.to_string(),
+    }
+}
+
+fn trimmed_or_default(value: &str, default: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        default.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn parse_or_default_u16(value: &str, default: u16, error_message: &str) -> Result<u16, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        Ok(default)
+    } else {
+        trimmed.parse::<u16>().map_err(|_| error_message.to_string())
+    }
+}
+
+fn parse_or_default_u64(value: &str, default: u64, error_message: &str) -> Result<u64, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        Ok(default)
+    } else {
+        trimmed.parse::<u64>().map_err(|_| error_message.to_string())
     }
 }
 

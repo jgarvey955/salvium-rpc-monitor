@@ -1,0 +1,609 @@
+Wallet RPC inventory
+====================
+
+COMMAND_RPC_ADD_ADDRESS_BOOK_ENTRY
+----------------------------------
+json_rpc methods: add_address_book
+request fields: address: std::string, description: std::string
+response fields: index: uint64_t
+
+COMMAND_RPC_AUDIT
+-----------------
+json_rpc methods: audit
+request fields: address: std::string, account_index: uint32_t, subaddr_indices: std::set<uint32_t>, subaddr_indices_all: bool, ring_size: uint64_t, payment_id: std::string, get_tx_keys: bool, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool, asset_type: std::string
+response fields (alias of split_transfer_response): tx_hash_list: std::list<std::string>, tx_key_list: std::list<std::string>, amount_list: std::list<uint64_t>, amounts_by_dest_list: std::list<amounts_list>, fee_list: std::list<uint64_t>, weight_list: std::list<uint64_t>, tx_blob_list: std::list<std::string>, tx_metadata_list: std::list<std::string>, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images_list: std::list<key_image_list>
+
+COMMAND_RPC_AUTO_REFRESH
+------------------------
+json_rpc methods: auto_refresh
+request fields: enable: bool, period: uint32_t
+response fields: none
+
+COMMAND_RPC_CHANGE_WALLET_PASSWORD
+----------------------------------
+json_rpc methods: change_wallet_password
+request fields: old_password: std::string, new_password: std::string
+response fields: none
+
+COMMAND_RPC_CHECK_RESERVE_PROOF
+-------------------------------
+json_rpc methods: check_reserve_proof
+request fields: address: std::string, message: std::string, signature: std::string
+response fields: good: bool, total: uint64_t, spent: uint64_t
+
+COMMAND_RPC_CHECK_SPEND_PROOF
+-----------------------------
+json_rpc methods: check_spend_proof
+request fields: txid: std::string, message: std::string, signature: std::string
+response fields: good: bool
+
+COMMAND_RPC_CHECK_TX_KEY
+------------------------
+json_rpc methods: check_tx_key
+request fields: txid: std::string, tx_key: std::string, address: std::string
+response fields: received: uint64_t, in_pool: bool, confirmations: uint64_t
+
+COMMAND_RPC_CHECK_TX_PROOF
+--------------------------
+json_rpc methods: check_tx_proof
+request fields: txid: std::string, address: std::string, message: std::string, signature: std::string
+response fields: good: bool, received: uint64_t, in_pool: bool, confirmations: uint64_t
+
+COMMAND_RPC_CLOSE_WALLET
+------------------------
+json_rpc methods: close_wallet
+request fields: autosave_current: bool
+response fields: none
+
+COMMAND_RPC_CREATE_ACCOUNT
+--------------------------
+json_rpc methods: create_account
+request fields: label: std::string
+response fields: account_index: uint32_t, address: std::string
+
+COMMAND_RPC_CREATE_ADDRESS
+--------------------------
+json_rpc methods: create_address
+request fields: account_index: uint32_t, count: uint32_t, label: std::string
+response fields: address: std::string, address_index: uint32_t, addresses: std::vector<std::string>, address_indices: std::vector<uint32_t>
+
+COMMAND_RPC_CREATE_TOKEN
+------------------------
+json_rpc methods: create_token
+request fields: ticker: std::string, supply: uint64_t, account_index: uint32_t, subaddr_indices: std::set<uint32_t>, name: std::string, url: std::string, hash: std::string, size: uint64_t, token_metadata_hex: std::string, get_tx_keys: bool, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool
+response fields (alias of split_transfer_response): tx_hash_list: std::list<std::string>, tx_key_list: std::list<std::string>, amount_list: std::list<uint64_t>, amounts_by_dest_list: std::list<amounts_list>, fee_list: std::list<uint64_t>, weight_list: std::list<uint64_t>, tx_blob_list: std::list<std::string>, tx_metadata_list: std::list<std::string>, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images_list: std::list<key_image_list>
+
+COMMAND_RPC_CREATE_WALLET
+-------------------------
+json_rpc methods: create_wallet
+request fields: filename: std::string, password: std::string, language: std::string
+response fields: none
+
+COMMAND_RPC_DELETE_ADDRESS_BOOK_ENTRY
+-------------------------------------
+json_rpc methods: delete_address_book
+request fields: index: uint64_t
+response fields: none
+
+COMMAND_RPC_DESCRIBE_TRANSFER
+-----------------------------
+json_rpc methods: describe_transfer
+request fields: unsigned_txset: std::string, multisig_txset: std::string
+response fields: desc: std::list<transfer_description>
+nested types:
+  - recipient: address: std::string, amount: uint64_t
+  - transfer_description: amount_in: uint64_t, amount_out: uint64_t, ring_size: uint32_t, unlock_time: uint64_t, recipients: std::list<recipient>, payment_id: std::string, change_amount: uint64_t, change_address: std::string, fee: uint64_t, dummy_outputs: uint32_t, extra: std::string
+  - txset_summary: amount_in: uint64_t, amount_out: uint64_t, recipients: std::list<recipient>, change_amount: uint64_t, change_address: std::string, fee: uint64_t
+
+COMMAND_RPC_EDIT_ADDRESS_BOOK_ENTRY
+-----------------------------------
+json_rpc methods: edit_address_book
+request fields: index: uint64_t, set_address: bool, address: std::string, set_description: bool, description: std::string
+response fields: none
+
+COMMAND_RPC_ESTIMATE_TX_SIZE_AND_WEIGHT
+---------------------------------------
+json_rpc methods: estimate_tx_size_and_weight
+request fields: n_inputs: uint32_t, n_outputs: uint32_t, ring_size: uint32_t, rct: bool
+response fields: size: uint64_t, weight: uint64_t
+
+COMMAND_RPC_EXCHANGE_MULTISIG_KEYS
+----------------------------------
+json_rpc methods: exchange_multisig_keys
+request fields: password: std::string, multisig_info: std::vector<std::string>, force_update_use_with_caution: bool
+response fields: address: std::string, multisig_info: std::string
+
+COMMAND_RPC_EXPORT_KEY_IMAGES
+-----------------------------
+json_rpc methods: export_key_images
+request fields: all: bool
+response fields: offset: uint32_t, signed_key_images: std::vector<signed_key_image>
+nested types:
+  - signed_key_image: key_image: std::string, signature: std::string
+
+COMMAND_RPC_EXPORT_MULTISIG
+---------------------------
+json_rpc methods: export_multisig_info
+request fields: none
+response fields: info: std::string
+
+COMMAND_RPC_EXPORT_OUTPUTS
+--------------------------
+json_rpc methods: export_outputs
+request fields: all: bool, start: uint32_t, count: uint32_t
+response fields: outputs_data_hex: std::string
+
+COMMAND_RPC_FINALIZE_MULTISIG
+-----------------------------
+json_rpc methods: finalize_multisig
+request fields: none
+response fields: none
+
+COMMAND_RPC_FREEZE
+------------------
+json_rpc methods: freeze
+request fields: key_image: std::string
+response fields: none
+
+COMMAND_RPC_FROZEN
+------------------
+json_rpc methods: frozen
+request fields: key_image: std::string
+response fields: frozen: bool
+
+COMMAND_RPC_GENERATE_FROM_KEYS
+------------------------------
+json_rpc methods: generate_from_keys
+request fields: restore_height: uint64_t, filename: std::string, address: std::string, spendkey: std::string, viewkey: std::string, password: std::string, autosave_current: bool, language: std::string
+response fields: address: std::string, info: std::string
+
+COMMAND_RPC_GET_ACCOUNTS
+------------------------
+json_rpc methods: get_accounts
+request fields: tag: std::string, strict_balances: bool, regexp: bool
+response fields: total_balance: uint64_t, total_unlocked_balance: uint64_t, subaddress_accounts: std::vector<subaddress_account_info>
+nested types:
+  - subaddress_account_info: account_index: uint32_t, base_address: std::string, balance: uint64_t, unlocked_balance: uint64_t, label: std::string, tag: std::string
+
+COMMAND_RPC_GET_ACCOUNT_TAGS
+----------------------------
+json_rpc methods: get_account_tags
+request fields: none
+response fields: account_tags: std::vector<account_tag_info>
+nested types:
+  - account_tag_info: tag: std::string, label: std::string, accounts: std::vector<uint32_t>
+
+COMMAND_RPC_GET_ADDRESS
+-----------------------
+json_rpc methods: get_address, getaddress
+request fields: account_index: uint32_t, address_index: std::vector<uint32_t>, carrot: bool, cryptonote: bool
+response fields: address: std::string, addresses: std::vector<address_info>
+nested types:
+  - address_info: address: std::string, address_cn: std::string, address_carrot: std::string, label: std::string, address_index: uint32_t, used: bool
+
+COMMAND_RPC_GET_ADDRESS_BOOK_ENTRY
+----------------------------------
+json_rpc methods: get_address_book
+request fields: entries: std::list<uint64_t>
+response fields: entries: std::vector<entry>
+nested types:
+  - entry: index: uint64_t, address: std::string, description: std::string
+
+COMMAND_RPC_GET_ADDRESS_INDEX
+-----------------------------
+json_rpc methods: get_address_index
+request fields: address: std::string
+response fields: index: cryptonote::subaddress_index
+
+COMMAND_RPC_GET_ATTRIBUTE
+-------------------------
+json_rpc methods: get_attribute
+request fields: key: std::string
+response fields: value: std::string
+
+COMMAND_RPC_GET_BALANCE
+-----------------------
+json_rpc methods: get_balance, getbalance
+request fields: account_index: uint32_t, address_indices: std::set<uint32_t>, asset_type: std::string, all_accounts: bool, all_assets: bool, strict: bool
+response fields: balances: std::vector<balance_info>
+nested types:
+  - balance_info: balance: uint64_t, unlocked_balance: uint64_t, multisig_import_needed: bool, per_subaddress: std::vector<per_subaddress_info>, blocks_to_unlock: uint64_t, time_to_unlock: uint64_t, asset_type: std::string
+  - per_subaddress_info: account_index: uint32_t, address_index: uint32_t, address: std::string, balance: uint64_t, unlocked_balance: uint64_t, label: std::string, num_unspent_outputs: uint64_t, blocks_to_unlock: uint64_t, time_to_unlock: uint64_t
+
+COMMAND_RPC_GET_BULK_PAYMENTS
+-----------------------------
+json_rpc methods: get_bulk_payments
+request fields: payment_ids: std::vector<std::string>, min_block_height: uint64_t
+response fields: payments: std::list<payment_details>
+
+COMMAND_RPC_GET_DEFAULT_FEE_PRIORITY
+------------------------------------
+json_rpc methods: get_default_fee_priority
+request fields: none
+response fields: priority: uint32_t
+
+COMMAND_RPC_GET_HEIGHT
+----------------------
+json_rpc methods: get_height, getheight
+request fields: none
+response fields: height: uint64_t
+
+COMMAND_RPC_GET_LANGUAGES
+-------------------------
+json_rpc methods: get_languages
+request fields: none
+response fields: languages: std::vector<std::string>, languages_local: std::vector<std::string>
+
+COMMAND_RPC_GET_MULTISIG_KEY_EXCHANGE_BOOSTER
+---------------------------------------------
+json_rpc methods: get_multisig_key_exchange_booster
+request fields: password: std::string, multisig_info: std::vector<std::string>, threshold: uint32_t, num_signers: uint32_t
+response fields: multisig_info: std::string
+
+COMMAND_RPC_GET_PAYMENTS
+------------------------
+json_rpc methods: get_payments
+request fields: payment_id: std::string
+response fields: payments: std::list<payment_details>
+
+COMMAND_RPC_GET_RESERVE_PROOF
+-----------------------------
+json_rpc methods: get_reserve_proof
+request fields: all: bool, account_index: uint32_t, amount: uint64_t, message: std::string
+response fields: signature: std::string
+
+COMMAND_RPC_GET_SPEND_PROOF
+---------------------------
+json_rpc methods: get_spend_proof
+request fields: txid: std::string, message: std::string
+response fields: signature: std::string
+
+COMMAND_RPC_GET_TOKENS
+----------------------
+json_rpc methods: get_tokens
+request fields: regex: std::string
+response fields: tokens: std::vector<std::string>
+
+COMMAND_RPC_GET_TOKEN_INFO
+--------------------------
+json_rpc methods: get_token_info
+request fields: asset_type: std::string
+response fields: status: std::string, token_type: uint8_t, version: uint8_t, asset_type: std::string, sal_token: cryptonote::sal_token_t, erc_token: cryptonote::erc_token_t
+
+COMMAND_RPC_GET_TRANSFERS
+-------------------------
+json_rpc methods: get_transfers
+request fields: in: bool, out: bool, pending: bool, failed: bool, pool: bool, filter_by_height: bool, min_height: uint64_t, max_height: uint64_t, account_index: uint32_t, subaddr_indices: std::set<uint32_t>, all_accounts: bool
+response fields: in: std::list<transfer_entry>, out: std::list<transfer_entry>, pending: std::list<transfer_entry>, failed: std::list<transfer_entry>, pool: std::list<transfer_entry>
+
+COMMAND_RPC_GET_TRANSFER_BY_TXID
+--------------------------------
+json_rpc methods: get_transfer_by_txid
+request fields: txid: std::string, account_index: uint32_t
+response fields: transfer: transfer_entry, transfers: std::list<transfer_entry>
+
+COMMAND_RPC_GET_TX_KEY
+----------------------
+json_rpc methods: get_tx_key
+request fields: txid: std::string
+response fields: tx_key: std::string
+
+COMMAND_RPC_GET_TX_NOTES
+------------------------
+json_rpc methods: get_tx_notes
+request fields: txids: std::list<std::string>
+response fields: notes: std::list<std::string>
+
+COMMAND_RPC_GET_TX_PROOF
+------------------------
+json_rpc methods: get_tx_proof
+request fields: txid: std::string, address: std::string, message: std::string
+response fields: signature: std::string
+
+COMMAND_RPC_GET_VERSION
+-----------------------
+json_rpc methods: get_version
+request fields: none
+response fields: version: uint32_t, release: bool
+
+COMMAND_RPC_IMPORT_KEY_IMAGES
+-----------------------------
+json_rpc methods: import_key_images
+request fields: offset: uint32_t, signed_key_images: std::vector<signed_key_image>
+response fields: height: uint64_t, spent: uint64_t, unspent: uint64_t
+nested types:
+  - signed_key_image: key_image: std::string, signature: std::string
+
+COMMAND_RPC_IMPORT_MULTISIG
+---------------------------
+json_rpc methods: import_multisig_info
+request fields: info: std::vector<std::string>
+response fields: n_outputs: uint64_t
+
+COMMAND_RPC_IMPORT_OUTPUTS
+--------------------------
+json_rpc methods: import_outputs
+request fields: outputs_data_hex: std::string
+response fields: num_imported: uint64_t
+
+COMMAND_RPC_INCOMING_TRANSFERS
+------------------------------
+json_rpc methods: incoming_transfers
+request fields: transfer_type: std::string, account_index: uint32_t, subaddr_indices: std::set<uint32_t>
+response fields: transfers: std::list<transfer_details>
+
+COMMAND_RPC_IS_MULTISIG
+-----------------------
+json_rpc methods: is_multisig
+request fields: none
+response fields: multisig: bool, kex_is_done: bool, ready: bool, threshold: uint32_t, total: uint32_t
+
+COMMAND_RPC_LABEL_ACCOUNT
+-------------------------
+json_rpc methods: label_account
+request fields: account_index: uint32_t, label: std::string
+response fields: none
+
+COMMAND_RPC_LABEL_ADDRESS
+-------------------------
+json_rpc methods: label_address
+request fields: index: cryptonote::subaddress_index, label: std::string
+response fields: none
+
+COMMAND_RPC_MAKE_INTEGRATED_ADDRESS
+-----------------------------------
+json_rpc methods: make_integrated_address
+request fields: standard_address: std::string, payment_id: std::string
+response fields: integrated_address: std::string, payment_id: std::string
+
+COMMAND_RPC_MAKE_MULTISIG
+-------------------------
+json_rpc methods: make_multisig
+request fields: multisig_info: std::vector<std::string>, threshold: uint32_t, password: std::string
+response fields: address: std::string, multisig_info: std::string
+
+COMMAND_RPC_MAKE_URI
+--------------------
+json_rpc methods: make_uri
+request fields (inherits uri_spec): none
+response fields: uri: std::string
+
+COMMAND_RPC_OPEN_WALLET
+-----------------------
+json_rpc methods: open_wallet
+request fields: filename: std::string, password: std::string, autosave_current: bool
+response fields: none
+
+COMMAND_RPC_PARSE_URI
+---------------------
+json_rpc methods: parse_uri
+request fields: uri: std::string
+response fields: uri: uri_spec, unknown_parameters: std::vector<std::string>
+
+COMMAND_RPC_PREPARE_MULTISIG
+----------------------------
+json_rpc methods: prepare_multisig
+request fields: enable_multisig_experimental: bool
+response fields: multisig_info: std::string
+
+COMMAND_RPC_QUERY_KEY
+---------------------
+json_rpc methods: query_key
+request fields: key_type: std::string
+response fields: key: std::string
+
+COMMAND_RPC_REFRESH
+-------------------
+json_rpc methods: refresh
+request fields: start_height: uint64_t
+response fields: blocks_fetched: uint64_t, received_money: bool
+
+COMMAND_RPC_RELAY_TX
+--------------------
+json_rpc methods: relay_tx
+request fields: hex: std::string
+response fields: tx_hash: std::string
+
+COMMAND_RPC_RESCAN_BLOCKCHAIN
+-----------------------------
+json_rpc methods: rescan_blockchain
+request fields: hard: bool
+response fields: none
+
+COMMAND_RPC_RESCAN_SPENT
+------------------------
+json_rpc methods: rescan_spent
+request fields: none
+response fields: none
+
+COMMAND_RPC_RESTORE_DETERMINISTIC_WALLET
+----------------------------------------
+json_rpc methods: restore_deterministic_wallet
+request fields: restore_height: uint64_t, filename: std::string, seed: std::string, seed_offset: std::string, password: std::string, language: std::string, autosave_current: bool, enable_multisig_experimental: bool
+response fields: address: std::string, seed: std::string, info: std::string, was_deprecated: bool
+
+COMMAND_RPC_RETURN_PAYMENT
+--------------------------
+json_rpc methods: return_payment
+request fields: txid: std::string, get_tx_key: bool, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool
+response fields (alias of split_transfer_response): tx_hash_list: std::list<std::string>, tx_key_list: std::list<std::string>, amount_list: std::list<uint64_t>, amounts_by_dest_list: std::list<amounts_list>, fee_list: std::list<uint64_t>, weight_list: std::list<uint64_t>, tx_blob_list: std::list<std::string>, tx_metadata_list: std::list<std::string>, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images_list: std::list<key_image_list>
+
+COMMAND_RPC_SCAN_TX
+-------------------
+json_rpc methods: scan_tx
+request fields: txids: std::list<std::string>
+response fields: none
+
+COMMAND_RPC_SETUP_BACKGROUND_SYNC
+---------------------------------
+json_rpc methods: setup_background_sync
+request fields: background_sync_type: std::string, wallet_password: std::string, background_cache_password: std::string
+response fields: none
+
+COMMAND_RPC_SET_ACCOUNT_TAG_DESCRIPTION
+---------------------------------------
+json_rpc methods: set_account_tag_description
+request fields: tag: std::string, description: std::string
+response fields: none
+
+COMMAND_RPC_SET_ATTRIBUTE
+-------------------------
+json_rpc methods: set_attribute
+request fields: key: std::string, value: std::string
+response fields: none
+
+COMMAND_RPC_SET_DAEMON
+----------------------
+json_rpc methods: set_daemon
+request fields: address: std::string, username: std::string, password: std::string, trusted: bool, ssl_support: std::string, ssl_private_key_path: std::string, ssl_certificate_path: std::string, ssl_ca_file: std::string, ssl_allowed_fingerprints: std::vector<std::string>, ssl_allow_any_cert: bool, proxy: std::string
+response fields: none
+
+COMMAND_RPC_SET_LOG_CATEGORIES
+------------------------------
+json_rpc methods: set_log_categories
+request fields: categories: std::string
+response fields: categories: std::string
+
+COMMAND_RPC_SET_LOG_LEVEL
+-------------------------
+json_rpc methods: set_log_level
+request fields: level: int8_t
+response fields: none
+
+COMMAND_RPC_SET_TX_NOTES
+------------------------
+json_rpc methods: set_tx_notes
+request fields: txids: std::list<std::string>, notes: std::list<std::string>
+response fields: none
+
+COMMAND_RPC_SIGN
+----------------
+json_rpc methods: sign
+request fields: data: std::string, account_index: uint32_t, address_index: uint32_t, signature_type: std::string
+response fields: signature: std::string
+
+COMMAND_RPC_SIGN_MULTISIG
+-------------------------
+json_rpc methods: sign_multisig
+request fields: tx_data_hex: std::string
+response fields: tx_data_hex: std::string, tx_hash_list: std::list<std::string>
+
+COMMAND_RPC_SIGN_TRANSFER
+-------------------------
+json_rpc methods: sign_transfer
+request fields: unsigned_txset: std::string, export_raw: bool, get_tx_keys: bool
+response fields: signed_txset: std::string, tx_hash_list: std::list<std::string>, tx_raw_list: std::list<std::string>, tx_key_list: std::list<std::string>
+
+COMMAND_RPC_SPLIT_INTEGRATED_ADDRESS
+------------------------------------
+json_rpc methods: split_integrated_address
+request fields: integrated_address: std::string
+response fields: standard_address: std::string, payment_id: std::string, is_subaddress: bool
+
+COMMAND_RPC_START_BACKGROUND_SYNC
+---------------------------------
+json_rpc methods: start_background_sync
+request fields: none
+response fields: none
+
+COMMAND_RPC_START_MINING
+------------------------
+json_rpc methods: start_mining
+request fields: threads_count: uint64_t, do_background_mining: bool, ignore_battery: bool
+response fields: none
+
+COMMAND_RPC_STOP_BACKGROUND_SYNC
+--------------------------------
+json_rpc methods: stop_background_sync
+request fields: wallet_password: std::string, seed: std::string, seed_offset: std::string
+response fields: none
+
+COMMAND_RPC_STOP_MINING
+-----------------------
+json_rpc methods: stop_mining
+request fields: none
+response fields: none
+
+COMMAND_RPC_STOP_WALLET
+-----------------------
+json_rpc methods: stop_wallet
+request fields: none
+response fields: none
+
+COMMAND_RPC_STORE
+-----------------
+json_rpc methods: store
+request fields: none
+response fields: none
+
+COMMAND_RPC_SUBMIT_MULTISIG
+---------------------------
+json_rpc methods: submit_multisig
+request fields: tx_data_hex: std::string
+response fields: tx_hash_list: std::list<std::string>
+
+COMMAND_RPC_SUBMIT_TRANSFER
+---------------------------
+json_rpc methods: submit_transfer
+request fields: tx_data_hex: std::string
+response fields: tx_hash_list: std::list<std::string>
+
+COMMAND_RPC_SWEEP_ALL
+---------------------
+json_rpc methods: sweep_all
+request fields: address: std::string, account_index: uint32_t, subaddr_indices: std::set<uint32_t>, subaddr_indices_all: bool, priority: uint32_t, ring_size: uint64_t, outputs: uint64_t, unlock_time: uint64_t, payment_id: std::string, get_tx_keys: bool, below_amount: uint64_t, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool, asset_type: std::string
+response fields (alias of split_transfer_response): tx_hash_list: std::list<std::string>, tx_key_list: std::list<std::string>, amount_list: std::list<uint64_t>, amounts_by_dest_list: std::list<amounts_list>, fee_list: std::list<uint64_t>, weight_list: std::list<uint64_t>, tx_blob_list: std::list<std::string>, tx_metadata_list: std::list<std::string>, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images_list: std::list<key_image_list>
+
+COMMAND_RPC_SWEEP_DUST
+----------------------
+json_rpc methods: sweep_dust, sweep_unmixable
+request fields: get_tx_keys: bool, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool
+response fields (alias of split_transfer_response): tx_hash_list: std::list<std::string>, tx_key_list: std::list<std::string>, amount_list: std::list<uint64_t>, amounts_by_dest_list: std::list<amounts_list>, fee_list: std::list<uint64_t>, weight_list: std::list<uint64_t>, tx_blob_list: std::list<std::string>, tx_metadata_list: std::list<std::string>, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images_list: std::list<key_image_list>
+
+COMMAND_RPC_SWEEP_SINGLE
+------------------------
+json_rpc methods: sweep_single
+request fields: address: std::string, priority: uint32_t, ring_size: uint64_t, outputs: uint64_t, unlock_time: uint64_t, payment_id: std::string, get_tx_key: bool, key_image: std::string, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool, asset_type: std::string
+response fields (alias of single_transfer_response): tx_hash: std::string, tx_key: std::string, amount: uint64_t, amounts_by_dest: amounts_list, fee: uint64_t, weight: uint64_t, tx_blob: std::string, tx_metadata: std::string, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images: key_image_list
+
+COMMAND_RPC_TAG_ACCOUNTS
+------------------------
+json_rpc methods: tag_accounts
+request fields: tag: std::string, accounts: std::set<uint32_t>
+response fields: none
+
+COMMAND_RPC_THAW
+----------------
+json_rpc methods: thaw
+request fields: key_image: std::string
+response fields: none
+
+COMMAND_RPC_TRANSFER
+--------------------
+json_rpc methods: transfer
+request fields: destinations: std::list<transfer_destination>, source_asset: std::string, dest_asset: std::string, tx_type: uint8_t, account_index: uint32_t, subaddr_indices: std::set<uint32_t>, subtract_fee_from_outputs: std::set<uint32_t>, priority: uint32_t, ring_size: uint64_t, unlock_time: uint64_t, payment_id: std::string, get_tx_key: bool, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool
+response fields (alias of single_transfer_response): tx_hash: std::string, tx_key: std::string, amount: uint64_t, amounts_by_dest: amounts_list, fee: uint64_t, weight: uint64_t, tx_blob: std::string, tx_metadata: std::string, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images: key_image_list
+
+COMMAND_RPC_TRANSFER_SPLIT
+--------------------------
+json_rpc methods: transfer_split
+request fields: destinations: std::list<transfer_destination>, source_asset: std::string, dest_asset: std::string, tx_type: uint8_t, account_index: uint32_t, subaddr_indices: std::set<uint32_t>, priority: uint32_t, ring_size: uint64_t, unlock_time: uint64_t, payment_id: std::string, get_tx_keys: bool, do_not_relay: bool, get_tx_hex: bool, get_tx_metadata: bool
+response fields (alias of split_transfer_response): tx_hash_list: std::list<std::string>, tx_key_list: std::list<std::string>, amount_list: std::list<uint64_t>, amounts_by_dest_list: std::list<amounts_list>, fee_list: std::list<uint64_t>, weight_list: std::list<uint64_t>, tx_blob_list: std::list<std::string>, tx_metadata_list: std::list<std::string>, multisig_txset: std::string, unsigned_txset: std::string, spent_key_images_list: std::list<key_image_list>
+
+COMMAND_RPC_UNTAG_ACCOUNTS
+--------------------------
+json_rpc methods: untag_accounts
+request fields: accounts: std::set<uint32_t>
+response fields: none
+
+COMMAND_RPC_VALIDATE_ADDRESS
+----------------------------
+json_rpc methods: validate_address
+request fields: address: std::string, any_net_type: bool, allow_openalias: bool
+response fields: valid: bool, integrated: bool, subaddress: bool, nettype: std::string, openalias_address: std::string
+
+COMMAND_RPC_VERIFY
+------------------
+json_rpc methods: verify
+request fields: data: std::string, address: std::string, signature: std::string
+response fields: good: bool, version: unsigned, old: bool, signature_type: std::string

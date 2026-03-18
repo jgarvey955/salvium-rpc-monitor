@@ -1,0 +1,557 @@
+Main RPC inventory
+==================
+
+COMMAND_RPC_ACCESS_ACCOUNT
+--------------------------
+http endpoints: none
+json_rpc methods: rpc_access_account
+request fields (inherits rpc_request_base): client: std::string, delta_balance: int64_t
+response fields (inherits rpc_response_base): credits: uint64_t
+
+COMMAND_RPC_ACCESS_DATA
+-----------------------
+http endpoints: none
+json_rpc methods: rpc_access_data
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): entries: std::list<entry>, hashrate: uint32_t
+nested types:
+  - entry: client: std::string, balance: uint64_t, last_update_time: uint64_t, credits_total: uint64_t, credits_used: uint64_t, nonces_good: uint64_t, nonces_stale: uint64_t, nonces_bad: uint64_t, nonces_dupe: uint64_t
+
+COMMAND_RPC_ACCESS_INFO
+-----------------------
+http endpoints: none
+json_rpc methods: rpc_access_info
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): hashing_blob: std::string, seed_height: uint64_t, seed_hash: std::string, next_seed_hash: std::string, cookie: uint32_t, diff: uint64_t, credits_per_hash_found: uint64_t, height: uint64_t
+
+COMMAND_RPC_ACCESS_PAY
+----------------------
+http endpoints: none
+json_rpc methods: rpc_access_pay
+request fields (inherits rpc_access_request_base): paying_for: std::string, payment: uint64_t
+response fields (inherits rpc_access_response_base): none
+
+COMMAND_RPC_ACCESS_SUBMIT_NONCE
+-------------------------------
+http endpoints: none
+json_rpc methods: rpc_access_submit_nonce
+request fields (inherits rpc_access_request_base): nonce: uint32_t, cookie: uint32_t
+response fields (inherits rpc_access_response_base): none
+
+COMMAND_RPC_ACCESS_TRACKING
+---------------------------
+http endpoints: none
+json_rpc methods: rpc_access_tracking
+request fields (inherits rpc_request_base): clear: bool
+response fields (inherits rpc_response_base): data: std::vector<entry>
+nested types:
+  - entry: rpc: std::string, count: uint64_t, time: uint64_t, credits: uint64_t
+
+COMMAND_RPC_ADD_AUX_POW
+-----------------------
+http endpoints: none
+json_rpc methods: add_aux_pow
+request fields (inherits rpc_request_base): blocktemplate_blob: blobdata, aux_pow: std::vector<aux_pow_t>
+response fields (inherits rpc_response_base): blocktemplate_blob: blobdata, blockhashing_blob: blobdata, merkle_root: std::string, merkle_tree_depth: uint32_t, aux_pow: std::vector<aux_pow_t>
+nested types:
+  - aux_pow_t: id: std::string, hash: std::string
+
+COMMAND_RPC_BANNED
+------------------
+http endpoints: none
+json_rpc methods: banned
+request fields: address: std::string
+response fields: status: std::string, banned: bool, seconds: uint32_t
+
+COMMAND_RPC_CALCPOW
+-------------------
+http endpoints: none
+json_rpc methods: calc_pow
+request fields (inherits rpc_request_base): major_version: uint8_t, height: uint64_t, block_blob: blobdata, seed_hash: std::string
+response fields (alias of std::string): none
+
+COMMAND_RPC_FLUSH_CACHE
+-----------------------
+http endpoints: none
+json_rpc methods: flush_cache
+request fields (inherits rpc_request_base): bad_txs: bool, bad_blocks: bool
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_FLUSH_TRANSACTION_POOL
+----------------------------------
+http endpoints: none
+json_rpc methods: flush_txpool
+request fields (inherits rpc_request_base): txids: std::vector<std::string>
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_GENERATEBLOCKS
+--------------------------
+http endpoints: none
+json_rpc methods: generateblocks
+request fields (inherits rpc_request_base): amount_of_blocks: uint64_t, wallet_address: std::string, prev_block: std::string, starting_nonce: uint32_t
+response fields (inherits rpc_response_base): height: uint64_t, blocks: std::vector<std::string>
+
+COMMAND_RPC_GETBANS
+-------------------
+http endpoints: none
+json_rpc methods: get_bans
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): bans: std::vector<ban>
+nested types:
+  - ban: host: std::string, ip: uint32_t, seconds: uint32_t
+
+COMMAND_RPC_GETBLOCKCOUNT
+-------------------------
+http endpoints: none
+json_rpc methods: get_block_count, getblockcount
+request fields (alias of std::list<std::string>): none
+response fields (inherits rpc_response_base): count: uint64_t
+
+COMMAND_RPC_GETBLOCKHASH
+------------------------
+http endpoints: none
+json_rpc methods: on_get_block_hash, on_getblockhash
+request fields (alias of std::vector<uint64_t>): none
+response fields (alias of std::string): none
+
+COMMAND_RPC_GETBLOCKTEMPLATE
+----------------------------
+http endpoints: none
+json_rpc methods: get_block_template, getblocktemplate
+request fields (inherits rpc_request_base): reserve_size: uint64_t, wallet_address: std::string, prev_block: std::string, extra_nonce: std::string
+response fields (inherits rpc_response_base): difficulty: uint64_t, wide_difficulty: std::string, difficulty_top64: uint64_t, height: uint64_t, reserved_offset: uint64_t, expected_reward: uint64_t, prev_hash: std::string, seed_height: uint64_t, seed_hash: std::string, next_seed_hash: std::string, blocktemplate_blob: blobdata, blockhashing_blob: blobdata
+
+COMMAND_RPC_GETMINERDATA
+------------------------
+http endpoints: none
+json_rpc methods: get_miner_data
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): major_version: uint8_t, height: uint64_t, prev_id: std::string, seed_hash: std::string, difficulty: std::string, median_weight: uint64_t, already_generated_coins: uint64_t, tx_backlog: std::vector<tx_backlog_entry>
+
+COMMAND_RPC_GET_ALTERNATE_CHAINS
+--------------------------------
+http endpoints: none
+json_rpc methods: get_alternate_chains
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): chains: std::vector<chain_info>
+nested types:
+  - chain_info: block_hash: std::string, height: uint64_t, length: uint64_t, difficulty: uint64_t, wide_difficulty: std::string, difficulty_top64: uint64_t, block_hashes: std::vector<std::string>, main_chain_parent_block: std::string
+
+COMMAND_RPC_GET_ALT_BLOCKS_HASHES
+---------------------------------
+http endpoints: /get_alt_blocks_hashes [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): blks_hashes: std::vector<std::string>
+
+COMMAND_RPC_GET_BASE_FEE_ESTIMATE
+---------------------------------
+http endpoints: none
+json_rpc methods: get_fee_estimate
+request fields (inherits rpc_access_request_base): grace_blocks: uint64_t
+response fields (inherits rpc_access_response_base): fee: uint64_t, quantization_mask: uint64_t, fees: std::vector<uint64_t>
+
+COMMAND_RPC_GET_BLOCK
+---------------------
+http endpoints: none
+json_rpc methods: get_block, getblock
+request fields (inherits rpc_access_request_base): hash: std::string, height: uint64_t, fill_pow_hash: bool
+response fields (inherits rpc_access_response_base): block_header: block_header_response, miner_tx_hash: std::string, protocol_tx_hash: std::string, tx_hashes: std::vector<std::string>, blob: std::string, json: std::string
+
+COMMAND_RPC_GET_BLOCKS_BY_HEIGHT
+--------------------------------
+http endpoints: /get_blocks_by_height.bin [binary], /getblocks_by_height.bin [binary]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): heights: std::vector<uint64_t>
+response fields (inherits rpc_access_response_base): blocks: std::vector<block_complete_entry>
+
+COMMAND_RPC_GET_BLOCKS_FAST
+---------------------------
+http endpoints: /get_blocks.bin [binary], /getblocks.bin [binary]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): requested_info: uint8_t, start_height: uint64_t, prune: bool, no_miner_tx: bool, pool_info_since: uint64_t
+response fields (inherits rpc_access_response_base): blocks: std::vector<block_complete_entry>, start_height: uint64_t, current_height: uint64_t, output_indices: std::vector<block_output_indices>, asset_type_output_indices: std::vector<block_asset_type_output_indices>, daemon_time: uint64_t, pool_info_extent: uint8_t, added_pool_txs: std::vector<pool_tx_info>, remaining_added_pool_txids: std::vector<crypto::hash>, removed_pool_txids: std::vector<crypto::hash>
+nested types:
+  - block_asset_type_output_indices: indices: std::vector<tx_asset_type_output_indices>
+  - block_output_indices: indices: std::vector<tx_output_indices>
+  - pool_tx_info: tx_hash: crypto::hash, tx_blob: blobdata, double_spend_seen: bool
+  - tx_asset_type_output_indices: indices: std::vector<uint64_t>
+  - tx_output_indices: indices: std::vector<uint64_t>
+
+COMMAND_RPC_GET_BLOCK_HEADERS_RANGE
+-----------------------------------
+http endpoints: none
+json_rpc methods: get_block_headers_range, getblockheadersrange
+request fields (inherits rpc_access_request_base): start_height: uint64_t, end_height: uint64_t, fill_pow_hash: bool
+response fields (inherits rpc_access_response_base): headers: std::vector<block_header_response>
+
+COMMAND_RPC_GET_BLOCK_HEADER_BY_HASH
+------------------------------------
+http endpoints: none
+json_rpc methods: get_block_header_by_hash, getblockheaderbyhash
+request fields (inherits rpc_access_request_base): hash: std::string, hashes: std::vector<std::string>, fill_pow_hash: bool
+response fields (inherits rpc_access_response_base): block_header: block_header_response, block_headers: std::vector<block_header_response>
+
+COMMAND_RPC_GET_BLOCK_HEADER_BY_HEIGHT
+--------------------------------------
+http endpoints: none
+json_rpc methods: get_block_header_by_height, getblockheaderbyheight
+request fields (inherits rpc_access_request_base): height: uint64_t, fill_pow_hash: bool
+response fields (inherits rpc_access_response_base): block_header: block_header_response
+
+COMMAND_RPC_GET_COINBASE_TX_SUM
+-------------------------------
+http endpoints: none
+json_rpc methods: get_coinbase_tx_sum
+request fields (inherits rpc_access_request_base): height: uint64_t, count: uint64_t
+response fields (inherits rpc_access_response_base): emission_amount: uint64_t, wide_emission_amount: std::string, emission_amount_top64: uint64_t, fee_amount: uint64_t, wide_fee_amount: std::string, fee_amount_top64: uint64_t
+
+COMMAND_RPC_GET_CONNECTIONS
+---------------------------
+http endpoints: none
+json_rpc methods: get_connections
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): connections: std::list<connection_info>
+
+COMMAND_RPC_GET_HASHES_FAST
+---------------------------
+http endpoints: /get_hashes.bin [binary], /gethashes.bin [binary]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): start_height: uint64_t
+response fields (inherits rpc_access_response_base): m_block_ids: std::vector<crypto::hash>, start_height: uint64_t, current_height: uint64_t
+
+COMMAND_RPC_GET_HEIGHT
+----------------------
+http endpoints: /get_height [json], /getheight [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): height: uint64_t, hash: std::string
+
+COMMAND_RPC_GET_INFO
+--------------------
+http endpoints: /get_info [json], /getinfo [json]
+json_rpc methods: get_info
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): height: uint64_t, target_height: uint64_t, difficulty: uint64_t, wide_difficulty: std::string, difficulty_top64: uint64_t, target: uint64_t, tx_count: uint64_t, tx_pool_size: uint64_t, alt_blocks_count: uint64_t, outgoing_connections_count: uint64_t, incoming_connections_count: uint64_t, rpc_connections_count: uint64_t, white_peerlist_size: uint64_t, grey_peerlist_size: uint64_t, mainnet: bool, testnet: bool, stagenet: bool, nettype: std::string, top_block_hash: std::string, cumulative_difficulty: uint64_t, wide_cumulative_difficulty: std::string, cumulative_difficulty_top64: uint64_t, block_size_limit: uint64_t, block_weight_limit: uint64_t, block_size_median: uint64_t, block_weight_median: uint64_t, adjusted_time: uint64_t, start_time: uint64_t, free_space: uint64_t, offline: bool, bootstrap_daemon_address: std::string, height_without_bootstrap: uint64_t, was_bootstrap_ever_used: bool, database_size: uint64_t, update_available: bool, busy_syncing: bool, version: std::string, synchronized: bool, restricted: bool
+
+COMMAND_RPC_GET_LAST_BLOCK_HEADER
+---------------------------------
+http endpoints: none
+json_rpc methods: get_last_block_header, getlastblockheader
+request fields (inherits rpc_access_request_base): fill_pow_hash: bool
+response fields (inherits rpc_access_response_base): block_header: block_header_response
+
+COMMAND_RPC_GET_LIMIT
+---------------------
+http endpoints: /get_limit [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): limit_up: uint64_t, limit_down: uint64_t
+
+COMMAND_RPC_GET_NET_STATS
+-------------------------
+http endpoints: /get_net_stats [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): start_time: uint64_t, total_packets_in: uint64_t, total_bytes_in: uint64_t, total_packets_out: uint64_t, total_bytes_out: uint64_t
+
+COMMAND_RPC_GET_OUTPUTS
+-----------------------
+http endpoints: /get_outs [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): outputs: std::vector<get_outputs_out>, get_txid: bool, asset_type: std::string
+response fields (inherits rpc_access_response_base): outs: std::vector<outkey>
+nested types:
+  - outkey: key: std::string, mask: std::string, unlocked: bool, height: uint64_t, txid: std::string, output_id: uint64_t
+
+COMMAND_RPC_GET_OUTPUTS_BIN
+---------------------------
+http endpoints: /get_outs.bin [binary]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): outputs: std::vector<get_outputs_out>, get_txid: bool, asset_type: std::string
+response fields (inherits rpc_access_response_base): outs: std::vector<outkey>
+nested types:
+  - outkey: key: crypto::public_key, mask: rct::key, unlocked: bool, height: uint64_t, txid: crypto::hash, output_id: uint64_t
+
+COMMAND_RPC_GET_OUTPUT_DISTRIBUTION
+-----------------------------------
+http endpoints: /get_output_distribution.bin [binary]
+json_rpc methods: get_output_distribution
+request fields (inherits rpc_access_request_base): amounts: std::vector<uint64_t>, from_height: uint64_t, to_height: uint64_t, rct_asset_type: std::string, cumulative: bool, binary: bool, compress: bool
+response fields (inherits rpc_access_response_base): distributions: std::vector<distribution>
+nested types:
+  - distribution: data: rpc::output_distribution_data, amount: uint64_t, compressed_data: std::string, binary: bool, compress: bool
+
+COMMAND_RPC_GET_OUTPUT_HISTOGRAM
+--------------------------------
+http endpoints: none
+json_rpc methods: get_output_histogram
+request fields (inherits rpc_access_request_base): amounts: std::vector<uint64_t>, min_count: uint64_t, max_count: uint64_t, unlocked: bool, recent_cutoff: uint64_t
+response fields (inherits rpc_access_response_base): histogram: std::vector<entry>
+nested types:
+  - entry: amount: uint64_t, total_instances: uint64_t, unlocked_instances: uint64_t, recent_instances: uint64_t
+
+COMMAND_RPC_GET_PEER_LIST
+-------------------------
+http endpoints: /get_peer_list [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): public_only: bool, include_blocked: bool
+response fields (inherits rpc_response_base): white_list: std::vector<peer>, gray_list: std::vector<peer>
+
+COMMAND_RPC_GET_PUBLIC_NODES
+----------------------------
+http endpoints: /get_public_nodes [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): gray: bool, white: bool, include_blocked: bool
+response fields (inherits rpc_response_base): gray: std::vector<public_node>, white: std::vector<public_node>
+
+COMMAND_RPC_GET_SUPPLY_INFO
+---------------------------
+http endpoints: none
+json_rpc methods: get_supply_info
+request fields: none
+response fields: status: std::string, height: uint64_t, supply_tally: std::vector<supply_entry>
+nested types:
+  - supply_entry: currency_label: std::string, amount: std::string
+
+COMMAND_RPC_GET_TOKENS
+----------------------
+http endpoints: none
+json_rpc methods: get_tokens
+request fields: filter: std::string
+response fields: status: std::string, tokens: std::vector<std::string>
+
+COMMAND_RPC_GET_TOKEN_INFO
+--------------------------
+http endpoints: none
+json_rpc methods: get_token_info
+request fields: asset_type: std::string
+response fields: status: std::string, asset_type: std::string, token_type: uint8_t, token: cryptonote::token_metadata_t, erc_token: cryptonote::erc_token_t, sal_token: cryptonote::sal_token_t
+
+COMMAND_RPC_GET_TRANSACTIONS
+----------------------------
+http endpoints: /get_transactions [json], /gettransactions [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): txs_hashes: std::vector<std::string>, decode_as_json: bool, prune: bool, split: bool
+response fields (inherits rpc_access_response_base): txs_as_hex: std::vector<std::string>, txs_as_json: std::vector<std::string>, missed_tx: std::vector<std::string>, txs: std::vector<entry>
+nested types:
+  - entry: tx_hash: std::string, as_hex: std::string, pruned_as_hex: std::string, prunable_as_hex: std::string, prunable_hash: std::string, as_json: std::string, in_pool: bool, double_spend_seen: bool, block_height: uint64_t, confirmations: uint64_t, block_timestamp: uint64_t, received_timestamp: uint64_t, output_indices: std::vector<uint64_t>, asset_type_output_indices: std::vector<uint64_t>, relayed: bool
+
+COMMAND_RPC_GET_TRANSACTION_POOL
+--------------------------------
+http endpoints: /get_transaction_pool [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): transactions: std::vector<tx_info>, spent_key_images: std::vector<spent_key_image_info>
+
+COMMAND_RPC_GET_TRANSACTION_POOL_BACKLOG
+----------------------------------------
+http endpoints: none
+json_rpc methods: get_txpool_backlog
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): backlog: std::vector<tx_backlog_entry>
+
+COMMAND_RPC_GET_TRANSACTION_POOL_HASHES
+---------------------------------------
+http endpoints: /get_transaction_pool_hashes [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): tx_hashes: std::vector<std::string>
+
+COMMAND_RPC_GET_TRANSACTION_POOL_HASHES_BIN
+-------------------------------------------
+http endpoints: /get_transaction_pool_hashes.bin [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): tx_hashes: std::vector<crypto::hash>
+
+COMMAND_RPC_GET_TRANSACTION_POOL_STATS
+--------------------------------------
+http endpoints: /get_transaction_pool_stats [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): pool_stats: txpool_stats
+
+COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES
+-----------------------------------------
+http endpoints: /get_o_indexes.bin [binary]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): txid: crypto::hash
+response fields (inherits rpc_access_response_base): o_indexes: std::vector<uint64_t>, asset_type_output_indices: std::vector<uint64_t>
+
+COMMAND_RPC_GET_VERSION
+-----------------------
+http endpoints: none
+json_rpc methods: get_version
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): version: uint32_t, release: bool, current_height: uint64_t, target_height: uint64_t, hard_forks: std::vector<hf_entry>
+nested types:
+  - hf_entry: hf_version: uint8_t, height: uint64_t
+
+COMMAND_RPC_GET_YIELD_INFO
+--------------------------
+http endpoints: none
+json_rpc methods: get_yield_info
+request fields: include_raw_data: bool, from_height: uint64_t, to_height: uint64_t
+response fields: status: std::string, total_burnt: uint64_t, total_staked: uint64_t, total_yield: uint64_t, yield_per_stake: uint64_t, yield_data: std::vector<COMMAND_RPC_GET_YIELD_INFO::yield_data_t>
+nested types:
+  - yield_data_t: block_height: uint64_t, slippage_total_this_block: uint64_t, locked_coins_this_block: uint64_t, locked_coins_tally: uint64_t, network_health_percentage: uint8_t
+
+COMMAND_RPC_HARD_FORK_INFO
+--------------------------
+http endpoints: none
+json_rpc methods: hard_fork_info
+request fields (inherits rpc_access_request_base): version: uint8_t
+response fields (inherits rpc_access_response_base): version: uint8_t, enabled: bool, window: uint32_t, votes: uint32_t, threshold: uint32_t, voting: uint8_t, state: uint32_t, earliest_height: uint64_t
+
+COMMAND_RPC_IN_PEERS
+--------------------
+http endpoints: /in_peers [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): set: bool, in_peers: uint32_t
+response fields (inherits rpc_response_base): in_peers: uint32_t
+
+COMMAND_RPC_IS_KEY_IMAGE_SPENT
+------------------------------
+http endpoints: /is_key_image_spent [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): key_images: std::vector<std::string>
+response fields (inherits rpc_access_response_base): spent_status: std::vector<int>
+
+COMMAND_RPC_MINING_STATUS
+-------------------------
+http endpoints: /mining_status [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): active: bool, speed: uint64_t, threads_count: uint32_t, address: std::string, pow_algorithm: std::string, is_background_mining_enabled: bool, bg_idle_threshold: uint8_t, bg_min_idle_seconds: uint8_t, bg_ignore_battery: bool, bg_target: uint8_t, block_target: uint32_t, block_reward: uint64_t, difficulty: uint64_t, wide_difficulty: std::string, difficulty_top64: uint64_t
+
+COMMAND_RPC_OUT_PEERS
+---------------------
+http endpoints: /out_peers [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): set: bool, out_peers: uint32_t
+response fields (inherits rpc_response_base): out_peers: uint32_t
+
+COMMAND_RPC_POP_BLOCKS
+----------------------
+http endpoints: /pop_blocks [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): nblocks: uint64_t
+response fields (inherits rpc_response_base): height: uint64_t
+
+COMMAND_RPC_PRUNE_BLOCKCHAIN
+----------------------------
+http endpoints: none
+json_rpc methods: prune_blockchain
+request fields (inherits rpc_request_base): check: bool
+response fields (inherits rpc_response_base): pruned: bool, pruning_seed: uint32_t
+
+COMMAND_RPC_RELAY_TX
+--------------------
+http endpoints: none
+json_rpc methods: relay_tx
+request fields (inherits rpc_access_request_base): txids: std::vector<std::string>
+response fields (inherits rpc_access_response_base): none
+
+COMMAND_RPC_SAVE_BC
+-------------------
+http endpoints: /save_bc [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_SEND_RAW_TX
+-----------------------
+http endpoints: /send_raw_transaction [json], /sendrawtransaction [json]
+json_rpc methods: none
+request fields (inherits rpc_access_request_base): tx_as_hex: std::string, source_asset_type: std::string, do_not_relay: bool, do_sanity_checks: bool
+response fields (inherits rpc_access_response_base): reason: std::string, not_relayed: bool, low_mixin: bool, double_spend: bool, invalid_input: bool, invalid_output: bool, too_big: bool, overspend: bool, fee_too_low: bool, too_few_outputs: bool, sanity_check_failed: bool, tx_extra_too_big: bool
+
+COMMAND_RPC_SETBANS
+-------------------
+http endpoints: none
+json_rpc methods: set_bans
+request fields (inherits rpc_request_base): bans: std::vector<ban>
+response fields (inherits rpc_response_base): none
+nested types:
+  - ban: host: std::string, ip: uint32_t, ban: bool, seconds: uint32_t
+
+COMMAND_RPC_SET_BOOTSTRAP_DAEMON
+--------------------------------
+http endpoints: /set_bootstrap_daemon [json]
+json_rpc methods: none
+request fields: address: std::string, username: std::string, password: std::string, proxy: std::string
+response fields: status: std::string
+
+COMMAND_RPC_SET_LIMIT
+---------------------
+http endpoints: /set_limit [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): limit_down: int64_t, limit_up: int64_t
+response fields (inherits rpc_response_base): limit_up: int64_t, limit_down: int64_t
+
+COMMAND_RPC_SET_LOG_CATEGORIES
+------------------------------
+http endpoints: /set_log_categories [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): categories: std::string
+response fields (inherits rpc_response_base): categories: std::string
+
+COMMAND_RPC_SET_LOG_HASH_RATE
+-----------------------------
+http endpoints: /set_log_hash_rate [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): visible: bool
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_SET_LOG_LEVEL
+-------------------------
+http endpoints: /set_log_level [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): level: int8_t
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_START_MINING
+------------------------
+http endpoints: /start_mining [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): miner_address: std::string, threads_count: uint64_t, do_background_mining: bool, ignore_battery: bool
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_STOP_DAEMON
+-----------------------
+http endpoints: /stop_daemon [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_STOP_MINING
+-----------------------
+http endpoints: /stop_mining [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): none
+response fields (inherits rpc_response_base): none
+
+COMMAND_RPC_SUBMITBLOCK
+-----------------------
+http endpoints: none
+json_rpc methods: submit_block, submitblock
+request fields (alias of std::vector<std::string>): none
+response fields (inherits rpc_response_base): block_id: std::string
+
+COMMAND_RPC_SYNC_INFO
+---------------------
+http endpoints: none
+json_rpc methods: sync_info
+request fields (inherits rpc_access_request_base): none
+response fields (inherits rpc_access_response_base): height: uint64_t, target_height: uint64_t, next_needed_pruning_seed: uint32_t, peers: std::list<peer>, spans: std::list<span>, overview: std::string
+nested types:
+  - peer: info: connection_info
+  - span: start_block_height: uint64_t, nblocks: uint64_t, connection_id: std::string, rate: uint32_t, speed: uint32_t, size: uint64_t, remote_address: std::string
+
+COMMAND_RPC_UPDATE
+------------------
+http endpoints: /update [json]
+json_rpc methods: none
+request fields (inherits rpc_request_base): command: std::string, path: std::string
+response fields (inherits rpc_response_base): update: bool, version: std::string, user_uri: std::string, auto_uri: std::string, hash: std::string, path: std::string

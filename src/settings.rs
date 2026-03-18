@@ -1,7 +1,13 @@
 use crate::rpc::RpcConnectionSettings;
+use iced::Size;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+
+const SETTINGS_PATH: &str = "settings.json";
+const WINDOW_STATE_PATH: &str = "window-state.json";
+const DEFAULT_WINDOW_WIDTH: f32 = 1380.0;
+const DEFAULT_WINDOW_HEIGHT: f32 = 920.0;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -21,6 +27,13 @@ pub struct Settings {
     pub wallet_login_username: String,
     pub wallet_login_password: String,
     pub poll_frequency_seconds: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(default)]
+pub struct WindowState {
+    pub width: f32,
+    pub height: f32,
 }
 
 impl Default for Settings {
@@ -45,11 +58,19 @@ impl Default for Settings {
     }
 }
 
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            width: DEFAULT_WINDOW_WIDTH,
+            height: DEFAULT_WINDOW_HEIGHT,
+        }
+    }
+}
+
 impl Settings {
     pub fn load() -> Result<(Self, bool), Box<dyn std::error::Error>> {
-        let path = "settings.json";
-        if Path::new(path).exists() {
-            let data = fs::read_to_string(path)?;
+        if Path::new(SETTINGS_PATH).exists() {
+            let data = fs::read_to_string(SETTINGS_PATH)?;
             let mut settings: Settings = serde_json::from_str(&data)?;
             settings.normalize();
             Ok((settings, true))
@@ -60,7 +81,7 @@ impl Settings {
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let data = serde_json::to_string_pretty(self)?;
-        fs::write("settings.json", data)?;
+        fs::write(SETTINGS_PATH, data)?;
         Ok(())
     }
 
@@ -110,6 +131,51 @@ impl Settings {
     }
 }
 
+impl WindowState {
+    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
+        if Path::new(WINDOW_STATE_PATH).exists() {
+            let data = fs::read_to_string(WINDOW_STATE_PATH)?;
+            let state: WindowState = serde_json::from_str(&data)?;
+            Ok(state.normalized())
+        } else {
+            Ok(Self::default())
+        }
+    }
+
+    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let data = serde_json::to_string_pretty(&self.normalized())?;
+        fs::write(WINDOW_STATE_PATH, data)?;
+        Ok(())
+    }
+
+    pub fn from_size(size: Size) -> Option<Self> {
+        if !size.width.is_finite()
+            || !size.height.is_finite()
+            || size.width <= 1.0
+            || size.height <= 1.0
+        {
+            return None;
+        }
+
+        Some(Self {
+            width: size.width,
+            height: size.height,
+        })
+    }
+
+    pub fn size(&self) -> Size {
+        let normalized = self.normalized();
+        Size::new(normalized.width, normalized.height)
+    }
+
+    fn normalized(self) -> Self {
+        Self {
+            width: normalize_dimension(self.width, DEFAULT_WINDOW_WIDTH),
+            height: normalize_dimension(self.height, DEFAULT_WINDOW_HEIGHT),
+        }
+    }
+}
+
 fn trimmed_or_none(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -140,5 +206,13 @@ fn display_urls(ip: &str, port: u16, transport: &str) -> String {
         "http" => format!("http://{ip}:{port}/json_rpc"),
         "https" => format!("https://{ip}:{port}/json_rpc"),
         _ => format!("http://{ip}:{port}/json_rpc"),
+    }
+}
+
+fn normalize_dimension(value: f32, fallback: f32) -> f32 {
+    if value.is_finite() && value > 1.0 {
+        value
+    } else {
+        fallback
     }
 }
